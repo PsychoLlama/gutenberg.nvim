@@ -22,6 +22,27 @@
     in
 
     {
+      packages = eachSystem (
+        system: pkgs:
+        let
+          sources = lib.fileset.unions [
+            ./lua
+            ./doc
+          ];
+          specs = lib.fileset.fileFilter (file: lib.hasSuffix "_spec.lua" file.name) ./.;
+        in
+        {
+          default = pkgs.vimUtils.buildVimPlugin {
+            pname = "gutenberg.nvim";
+            version = "0-unstable";
+            src = lib.fileset.toSource {
+              root = ./.;
+              fileset = lib.fileset.difference sources specs;
+            };
+          };
+        }
+      );
+
       devShells = eachSystem (
         system: pkgs: rec {
           default = pkgs.mkShell {
