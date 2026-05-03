@@ -1,6 +1,8 @@
 # Developing
 
 - `just check` must pass before committing.
+- Annotate all functions, fields, and module APIs with LuaCATS types.
+- Code comments explain *why*, not *what*. Skip them when the code is self-evident.
 
 ## Docs
 
