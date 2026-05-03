@@ -23,7 +23,7 @@
 
     {
       devShells = eachSystem (
-        system: pkgs: {
+        system: pkgs: rec {
           default = pkgs.mkShell {
             packages = [
               pkgs.just
@@ -32,6 +32,11 @@
               pkgs.luajitPackages.vusted
               pkgs.stylua
             ];
+          };
+
+          ci = pkgs.mkShell {
+            inputsFrom = [ default ];
+            packages = [ pkgs.neovim ];
           };
         }
       );
