@@ -1,0 +1,34 @@
+*gutenberg* tools for editing markdown
+
+Author:   Jesse Gibson <JesseTheGibson@gmail.com>
+Homepage: https://github.com/PsychoLlama/gutenberg.nvim
+License:  MIT
+
+
+  Press `gO` to show the table of contents.
+
+
+==============================================================================
+OVERVIEW                                                    *gutenberg-overview*
+
+Get started: |gutenberg.setup|
+
+==============================================================================
+SETUP                                                          *gutenberg.setup*
+
+Add the following to your `init.lua`:
+>lua
+  require('gutenberg').setup{
+    -- ...
+  }
+
+------------------------------------------------------------------------------
+KEYBINDINGS                                              *gutenberg-keybindings*
+
+==============================================================================
+RECIPES                                                      *gutenberg-recipes*
+
+==============================================================================
+API                                                              *gutenberg-api*
+
+vim: ft=help tw=78:

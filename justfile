@@ -1,6 +1,10 @@
 _:
   just --list
 
+# Regenerate Vim help tags for doc/.
+gen-helptags:
+  nvim --headless -c 'helptags doc' -c quit
+
 # Run luacheck on all Lua files.
 lint:
   luacheck lua
