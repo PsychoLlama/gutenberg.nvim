@@ -28,7 +28,7 @@ typecheck:
   export VIMRUNTIME=$(nvim --clean --headless --cmd 'echo $VIMRUNTIME | q' 2>&1)
   lua-language-server --check . --checklevel=Warning
 
-# Run all checks (lint + typecheck + unit tests + fmt), reporting all failures.
+# Run all checks (lint + typecheck + test + fmt), reporting all failures.
 check:
   #!/usr/bin/env bash
   failed=0

@@ -34,7 +34,7 @@
         {
           default = pkgs.vimUtils.buildVimPlugin {
             pname = "gutenberg.nvim";
-            version = "0-unstable";
+            version = self.shortRev or "latest";
             src = lib.fileset.toSource {
               root = ./.;
               fileset = lib.fileset.difference sources specs;
