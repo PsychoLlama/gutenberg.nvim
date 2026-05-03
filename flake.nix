@@ -51,7 +51,9 @@
               pkgs.lua-language-server
               pkgs.luajitPackages.luacheck
               pkgs.luajitPackages.vusted
+              pkgs.nixfmt
               pkgs.stylua
+              pkgs.treefmt
             ];
           };
 
