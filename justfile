@@ -17,7 +17,7 @@ typecheck:
   lua-language-server --check . --checklevel=Warning
 
 # Run all checks (lint + typecheck + unit tests), reporting all failures.
-test:
+check:
   #!/usr/bin/env bash
   failed=0
   just lint || failed=1
