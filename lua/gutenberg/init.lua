@@ -1,8 +1,8 @@
----@class gutenberg.Config
-
 local M = {}
 
----@param _opts gutenberg.Config?
-function M.setup(_opts) end
+---@param opts? gutenberg.Config
+function M.setup(opts)
+  require('gutenberg.config').merge(opts)
+end
 
 return M
