@@ -14,3 +14,7 @@ read_globals = {
   'after_each',
   'pending',
 }
+
+exclude_files = {
+  'result*/**',
+}
