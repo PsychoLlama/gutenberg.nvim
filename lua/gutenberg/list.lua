@@ -4,22 +4,82 @@
 ---@field checkbox string? Checkbox value (typically " " or "x"). nil = no checkbox.
 ---@field text string Content after the marker (and checkbox, if present).
 
+local context = require('gutenberg.context')
+
 local M = {}
 
+--- Find the nearest `list_item` ancestor at the cursor, or nil.
+---@param ctx gutenberg.Context
+---@return TSNode?
+local function find_list_item(ctx)
+  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
+  if parser == nil then
+    return nil
+  end
+  local tree = parser:parse()[1]
+  local row = ctx.cursor[1] - 1
+  local col = ctx.cursor[2]
+  local node = tree:root():descendant_for_range(row, col, row, col)
+  while node ~= nil do
+    if node:type() == 'list_item' then
+      return node
+    end
+    node = node:parent()
+  end
+  return nil
+end
+
 --- Whether the cursor is on a list item. Gate calls to `read` with this.
----@param _ctx? gutenberg.Context.Partial
+---@param ctx? gutenberg.Context.Partial
 ---@return boolean
-function M.is_list_item(_ctx)
-  error('not implemented')
+function M.is_list_item(ctx)
+  return find_list_item(context.resolve(ctx)) ~= nil
 end
 
 --- Read the list item containing the cursor. Errors if the cursor isn't on
 --- a list item; validate with `is_list_item` first. The returned `TSNode`
 --- captures the item's range for `replace`.
----@param _ctx? gutenberg.Context.Partial
+---@param ctx? gutenberg.Context.Partial
 ---@return gutenberg.list.Item, TSNode
-function M.read(_ctx)
-  error('not implemented')
+function M.read(ctx)
+  ctx = context.resolve(ctx)
+  local node = find_list_item(ctx)
+  if node == nil then
+    error('cursor is not on a list item')
+  end
+
+  local marker_node
+  for child in node:iter_children() do
+    if child:type():sub(1, 12) == 'list_marker_' then
+      marker_node = child
+      break
+    end
+  end
+  if marker_node == nil then
+    error('list_item is missing a marker')
+  end
+
+  local sr = node:range()
+  local line = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, sr + 1, false)[1]
+    or ''
+  local _, msc, _, mec = marker_node:range()
+
+  local indent = line:sub(1, msc)
+  local marker = vim.trim(line:sub(msc + 1, mec))
+  local rest = line:sub(mec + 1):gsub('^%s+', '')
+
+  local checkbox, text = rest:match('^%[(.)%]%s*(.-)$')
+  if checkbox == nil then
+    text = rest
+  end
+
+  return {
+    indent = indent,
+    marker = marker,
+    checkbox = checkbox,
+    text = text,
+  },
+    node
 end
 
 --- Construct a list item from explicit fields. Missing fields fall back to
@@ -37,19 +97,38 @@ function M.create(fields)
 end
 
 --- Render an item to a single line of buffer text.
----@param _item gutenberg.list.Item
+---@param item gutenberg.list.Item
 ---@return string
-function M.render(_item)
-  error('not implemented')
+function M.render(item)
+  local parts = { item.indent, item.marker }
+  if item.checkbox ~= nil then
+    table.insert(parts, ' [' .. item.checkbox .. ']')
+  end
+  if item.text ~= '' then
+    table.insert(parts, ' ' .. item.text)
+  end
+  return table.concat(parts)
 end
 
 --- Replace `node`'s range with the rendered items in a single buffer update.
 --- Pass an empty `items` list to delete the node.
----@param _node TSNode
----@param _items gutenberg.list.Item[]
----@param _ctx? gutenberg.Context.Partial
-function M.replace(_node, _items, _ctx)
-  error('not implemented')
+---@param node TSNode
+---@param items gutenberg.list.Item[]
+---@param ctx? gutenberg.Context.Partial
+function M.replace(node, items, ctx)
+  ctx = context.resolve(ctx)
+  local sr = node:range()
+
+  local lines = {}
+  for _, item in ipairs(items) do
+    table.insert(lines, M.render(item))
+  end
+
+  -- list_item ranges greedily include trailing blank lines and can extend
+  -- past EOF on the last item. Items are single-line, so write only the
+  -- marker's row — anything below sr is a nested child or whitespace we
+  -- shouldn't touch.
+  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, sr + 1, false, lines)
 end
 
 --- Get the marker on an item.
