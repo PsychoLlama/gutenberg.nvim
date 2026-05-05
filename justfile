@@ -26,7 +26,7 @@ typecheck:
   #!/usr/bin/env bash
   set -euo pipefail
   export VIMRUNTIME=$(nvim --clean --headless --cmd 'echo $VIMRUNTIME | q' 2>&1)
-  lua-language-server --check . --checklevel=Warning
+  lua-language-server --check . --checklevel=Error
 
 # Run all checks (lint + typecheck + test + fmt), reporting all failures.
 check:

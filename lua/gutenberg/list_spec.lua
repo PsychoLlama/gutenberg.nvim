@@ -18,52 +18,52 @@ describe('gutenberg.list', function()
   describe('render', function()
     it('renders a basic bullet item', function()
       local item = { indent = '', marker = '-', checkbox = nil, text = 'foo' }
-      assert.equals('- foo', list.render(item))
+      assert.equal('- foo', list.render(item))
     end)
 
     it('preserves the indent', function()
       local item =
         { indent = '  ', marker = '-', checkbox = nil, text = 'foo' }
-      assert.equals('  - foo', list.render(item))
+      assert.equal('  - foo', list.render(item))
     end)
 
     it('uses the configured marker', function()
       local item = { indent = '', marker = '*', checkbox = nil, text = 'foo' }
-      assert.equals('* foo', list.render(item))
+      assert.equal('* foo', list.render(item))
     end)
 
     it('renders ordered markers', function()
       local item =
         { indent = '', marker = '1.', checkbox = nil, text = 'foo' }
-      assert.equals('1. foo', list.render(item))
+      assert.equal('1. foo', list.render(item))
     end)
 
     it('renders an unchecked checkbox', function()
       local item = { indent = '', marker = '-', checkbox = ' ', text = 'foo' }
-      assert.equals('- [ ] foo', list.render(item))
+      assert.equal('- [ ] foo', list.render(item))
     end)
 
     it('renders a checked checkbox', function()
       local item = { indent = '', marker = '-', checkbox = 'x', text = 'foo' }
-      assert.equals('- [x] foo', list.render(item))
+      assert.equal('- [x] foo', list.render(item))
     end)
 
     it('preserves arbitrary checkbox states', function()
       local item = { indent = '', marker = '-', checkbox = '/', text = 'foo' }
-      assert.equals('- [/] foo', list.render(item))
+      assert.equal('- [/] foo', list.render(item))
     end)
 
     it(
       'handles empty text without a trailing space after the marker',
       function()
         local item = { indent = '', marker = '-', checkbox = nil, text = '' }
-        assert.equals('-', list.render(item))
+        assert.equal('-', list.render(item))
       end
     )
 
     it('handles empty text with a checkbox', function()
       local item = { indent = '', marker = '-', checkbox = ' ', text = '' }
-      assert.equals('- [ ]', list.render(item))
+      assert.equal('- [ ]', list.render(item))
     end)
   end)
 
@@ -130,51 +130,51 @@ describe('gutenberg.list', function()
 
     it('reads a star marker', function()
       with_buffer({ '* foo' }, { 1, 2 }, function(ctx)
-        assert.equals('*', list.read(ctx).marker)
+        assert.equal('*', list.read(ctx).marker)
       end)
     end)
 
     it('reads a plus marker', function()
       with_buffer({ '+ foo' }, { 1, 2 }, function(ctx)
-        assert.equals('+', list.read(ctx).marker)
+        assert.equal('+', list.read(ctx).marker)
       end)
     end)
 
     it('reads a numbered marker', function()
       with_buffer({ '1. foo' }, { 1, 3 }, function(ctx)
-        assert.equals('1.', list.read(ctx).marker)
+        assert.equal('1.', list.read(ctx).marker)
       end)
     end)
 
     it('preserves the indent of a nested item', function()
       with_buffer({ '- outer', '  - inner' }, { 2, 4 }, function(ctx)
         local item = list.read(ctx)
-        assert.equals('  ', item.indent)
-        assert.equals('inner', item.text)
+        assert.equal('  ', item.indent)
+        assert.equal('inner', item.text)
       end)
     end)
 
     it('reads an unchecked checkbox', function()
       with_buffer({ '- [ ] foo' }, { 1, 6 }, function(ctx)
         local item = list.read(ctx)
-        assert.equals(' ', item.checkbox)
-        assert.equals('foo', item.text)
+        assert.equal(' ', item.checkbox)
+        assert.equal('foo', item.text)
       end)
     end)
 
     it('reads a checked checkbox', function()
       with_buffer({ '- [x] foo' }, { 1, 6 }, function(ctx)
         local item = list.read(ctx)
-        assert.equals('x', item.checkbox)
-        assert.equals('foo', item.text)
+        assert.equal('x', item.checkbox)
+        assert.equal('foo', item.text)
       end)
     end)
 
     it('reads an empty item', function()
       with_buffer({ '- ' }, { 1, 2 }, function(ctx)
         local item = list.read(ctx)
-        assert.equals('-', item.marker)
-        assert.equals('', item.text)
+        assert.equal('-', item.marker)
+        assert.equal('', item.text)
         assert.is_nil(item.checkbox)
       end)
     end)
@@ -182,7 +182,7 @@ describe('gutenberg.list', function()
     it('returns the TSNode for the item', function()
       with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
         local _, node = list.read(ctx)
-        assert.equals('list_item', node:type())
+        assert.equal('list_item', node:type())
       end)
     end)
 
@@ -190,8 +190,8 @@ describe('gutenberg.list', function()
       with_buffer({ '- outer', '  - inner' }, { 2, 4 }, function(ctx)
         local _, node = list.read(ctx)
         local sr, _, er, _ = node:range()
-        assert.equals(1, sr)
-        assert.equals(2, er)
+        assert.equal(1, sr)
+        assert.equal(2, er)
       end)
     end)
   end)

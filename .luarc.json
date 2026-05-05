@@ -11,5 +11,10 @@
       "${3rd}/luassert/library"
     ],
     "ignoreDir": [".direnv", ".claude"]
+  },
+  "diagnostics": {
+    "severity": {
+      "undefined-field": "Error"
+    }
   }
 }
