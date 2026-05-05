@@ -9,4 +9,4 @@ includes = ["*.lua"]
 [formatter.prettier]
 command = "prettier"
 options = ["--write"]
-includes = ["*.md"]
+includes = ["*.md", "*.json"]
