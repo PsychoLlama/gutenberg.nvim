@@ -7,4 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `gutenberg.link` module for parsing and editing markdown links — inline,
+  reference (full / collapsed / shortcut), and URI autolinks — plus
+  link reference definitions exposed via `definitions` and `resolve`.
+- `gutenberg.link.Config.default_kind` to control the kind `link.create`
+  produces when one is not supplied.
+
 [Unreleased]: https://github.com/PsychoLlama/gutenberg.nvim/commits/main

@@ -31,4 +31,83 @@ RECIPES                                                      *gutenberg-recipes*
 ==============================================================================
 API                                                              *gutenberg-api*
 
+------------------------------------------------------------------------------
+LINK                                                          *gutenberg.link*
+
+Parse and edit markdown links. Distinguishes inline links, reference links
+(full, collapsed, shortcut), and URI autolinks. Images are not links and are
+skipped.
+
+`gutenberg.link.Kind` is one of:
+    `'inline'`              `[text](url)` (with optional title)
+    `'reference_full'`      `[text][label]`
+    `'reference_collapsed'` `[text][]`
+    `'reference_shortcut'`  `[text]`
+    `'autolink'`            `<url>`
+
+Special characters in `text`, `url`, `title`, and `label` are NOT escaped by
+`render`. Pre-escape any user input as needed.
+
+                                                          *gutenberg.link.is_link()*
+gutenberg.link.is_link({ctx})
+    Whether the cursor (or `ctx`) is inside a link node. Returns false on
+    images and link reference definitions.
+
+                                                             *gutenberg.link.read()*
+gutenberg.link.read({ctx})
+    Read the link at the cursor. Returns `(gutenberg.link.Link, TSNode)`.
+    The node spans the link's exact range — pass it to `replace`. Errors if
+    the cursor is not on a link; gate with `is_link`.
+
+                                                           *gutenberg.link.create()*
+gutenberg.link.create({fields})
+    Construct a `gutenberg.link.Link` from explicit fields. `kind` defaults
+    to `gutenberg.link.Config.default_kind` (`'inline'`). Validates that the
+    fields required for the kind are present; errors otherwise.
+
+                                                           *gutenberg.link.render()*
+gutenberg.link.render({link})
+    Render a link to its literal markdown source. Reverse of `read`.
+
+                                                          *gutenberg.link.replace()*
+gutenberg.link.replace({node}, {links}, {ctx})
+    Replace `node`'s exact range with the rendered concatenation of `links`.
+    Pass an empty list to delete the link. Multiple links concatenate with
+    no separator — the caller adds spacing if needed. Single buffer write.
+
+                                                    *gutenberg.link.is_definition()*
+gutenberg.link.is_definition({ctx})
+    Whether the cursor is inside a `link_reference_definition`.
+
+                                                  *gutenberg.link.read_definition()*
+gutenberg.link.read_definition({ctx})
+    Read the definition at the cursor. Returns
+    `(gutenberg.link.Definition, TSNode)`. Errors if not on a definition.
+
+                                                      *gutenberg.link.definitions()*
+gutenberg.link.definitions({ctx})
+    Return every link reference definition in the buffer, keyed by the
+    lowercased label.
+
+                                                          *gutenberg.link.resolve()*
+gutenberg.link.resolve({link}, {defs})
+    Look up a `reference_*` link's definition in `defs`. Returns nil for
+    inline and autolink kinds, or when the label is not defined.
+
+Field accessors:                                          *gutenberg.link-accessors*
+    `get_url(link)` / `set_url(link, url)`
+        Inline and autolink only; setters error on `reference_*` (use a
+        definition instead).
+    `get_text(link)` / `set_text(link, text)`
+        Errors on autolinks. Setting text on collapsed/shortcut also
+        updates the label so renders stay correct.
+    `get_title(link)` / `set_title(link, title)`
+        Inline links only. Pass nil to remove.
+    `get_label(link)` / `set_label(link, label)`
+        Reference_full only; collapsed/shortcut derive their label from
+        text, so set via `set_text` instead.
+    `get_kind(link)` / `set_kind(link, kind)`
+        Mutate the kind in place. The caller is responsible for ensuring
+        the link's other fields match the new kind's requirements.
+
 vim: ft=help tw=78:

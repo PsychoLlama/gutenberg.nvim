@@ -3,4 +3,15 @@ gutenberg-api	gutenberg.txt	/*gutenberg-api*
 gutenberg-keybindings	gutenberg.txt	/*gutenberg-keybindings*
 gutenberg-overview	gutenberg.txt	/*gutenberg-overview*
 gutenberg-recipes	gutenberg.txt	/*gutenberg-recipes*
+gutenberg.link	gutenberg.txt	/*gutenberg.link*
+gutenberg.link-accessors	gutenberg.txt	/*gutenberg.link-accessors*
+gutenberg.link.create()	gutenberg.txt	/*gutenberg.link.create()*
+gutenberg.link.definitions()	gutenberg.txt	/*gutenberg.link.definitions()*
+gutenberg.link.is_definition()	gutenberg.txt	/*gutenberg.link.is_definition()*
+gutenberg.link.is_link()	gutenberg.txt	/*gutenberg.link.is_link()*
+gutenberg.link.read()	gutenberg.txt	/*gutenberg.link.read()*
+gutenberg.link.read_definition()	gutenberg.txt	/*gutenberg.link.read_definition()*
+gutenberg.link.render()	gutenberg.txt	/*gutenberg.link.render()*
+gutenberg.link.replace()	gutenberg.txt	/*gutenberg.link.replace()*
+gutenberg.link.resolve()	gutenberg.txt	/*gutenberg.link.resolve()*
 gutenberg.setup	gutenberg.txt	/*gutenberg.setup*
