@@ -418,6 +418,23 @@ describe('gutenberg.table', function()
         assert.same(t.rows, t2.rows)
       end)
     end)
+
+    it('preserves a block quote prefix on every rewritten row', function()
+      with_buffer({
+        '> | a | b |',
+        '> | - | - |',
+        '> | 1 | 2 |',
+      }, { 1, 4 }, function(ctx)
+        local t, node = tbl.read(ctx)
+        t.rows[1][1] = 'x'
+        tbl.replace(node, { t }, ctx)
+        assert.same({
+          '> | a   | b   |',
+          '> | --- | --- |',
+          '> | x   | 2   |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
   end)
 
   describe('get_alignment / set_alignment', function()

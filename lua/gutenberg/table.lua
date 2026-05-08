@@ -245,18 +245,28 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.replace(node, tables, ctx)
   ctx = context.resolve(ctx)
-  local sr, _, er, ec = node:range()
+  local sr, sc, er, ec = node:range()
   if ec == 0 then
     er = er - 1
+  end
+
+  -- When the table is nested in a container (e.g. block quote), columns
+  -- 0..sc-1 of the start row carry the container's prefix. Capture it and
+  -- prepend to every rewritten line so the container survives the edit.
+  local prefix = ''
+  if sc > 0 then
+    local first = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, sr + 1, false)[1]
+      or ''
+    prefix = first:sub(1, sc)
   end
 
   local lines = {}
   for i, tbl in ipairs(tables) do
     if i > 1 then
-      table.insert(lines, '')
+      table.insert(lines, prefix)
     end
     for _, line in ipairs(M.render(tbl)) do
-      table.insert(lines, line)
+      table.insert(lines, prefix .. line)
     end
   end
 
