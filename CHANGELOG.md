@@ -7,4 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `gutenberg.table` module for reading, editing, rendering, and replacing
+  GFM pipe tables. Includes per-column alignment (`none`, `left`, `center`,
+  `right`), cell accessors, and round-trippable rendering.
+- `gutenberg.table.Config` with a `default_alignment` setting for new tables
+  created via `gutenberg.table.create`.
+
 [Unreleased]: https://github.com/PsychoLlama/gutenberg.nvim/commits/main
