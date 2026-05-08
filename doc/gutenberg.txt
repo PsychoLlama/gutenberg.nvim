@@ -31,4 +31,80 @@ RECIPES                                                      *gutenberg-recipes*
 ==============================================================================
 API                                                              *gutenberg-api*
 
+------------------------------------------------------------------------------
+HEADING                                                      *gutenberg.heading*
+
+Read and edit ATX markdown headings (`# foo`, `## bar`, ...). Setext-style
+underline headings are not supported. All functions accept an optional
+`gutenberg.Context.Partial` (see |gutenberg.context|) and default to the
+current buffer and cursor.
+
+A heading is represented by a plain table:
+>lua
+  ---@class gutenberg.heading.Heading
+  ---@field level integer  -- 1..6
+  ---@field text string
+
+is_heading({ctx})                                  *gutenberg.heading.is_heading*
+    Returns `true` when the cursor is on an ATX heading. Use this to gate
+    `read`, which errors otherwise.
+
+read({ctx})                                            *gutenberg.heading.read*
+    Returns the heading containing the cursor along with its `TSNode`
+    (type `atx_heading`). Errors when the cursor is not on a heading.
+
+create({fields})                                     *gutenberg.heading.create*
+    Builds a heading from `{ level?, text? }`. Missing fields fall back to
+    `gutenberg.heading.Config` (default `level = 1`, `text = ''`).
+    Errors when `level` is outside 1..6.
+
+render({heading})                                    *gutenberg.heading.render*
+    Renders a heading to a single line of buffer text (`# text`).
+
+replace({node}, {headings}, {ctx})                  *gutenberg.heading.replace*
+    Replaces the range of `node` with the rendered headings in a single
+    buffer update. Pass an empty list to delete the heading.
+
+get_level({h})                                    *gutenberg.heading.get_level*
+set_level({h}, {level})                           *gutenberg.heading.set_level*
+    Read or write the heading level. `set_level` errors when `level` is
+    not an integer in 1..6.
+
+get_text({h})                                      *gutenberg.heading.get_text*
+set_text({h}, {text})                              *gutenberg.heading.set_text*
+    Read or write the heading text (everything after the `#` markers).
+
+list({ctx})                                            *gutenberg.heading.list*
+    Returns every ATX heading in the buffer in document order as
+    `{ heading, node }` entries. Useful for tables of contents and
+    pickers.
+
+find_next({ctx}, {opts})                          *gutenberg.heading.find_next*
+find_prev({ctx}, {opts})                          *gutenberg.heading.find_prev*
+    Returns the nearest heading strictly after / before the cursor row,
+    or `nil` when none qualifies. `opts` is an optional table with
+    `min_level` and `max_level` filters. Neither helper moves the
+    cursor; the caller decides how to act on the result.
+
+find_parent({ctx})                              *gutenberg.heading.find_parent*
+    Returns the heading governing the cursor's section: the closest
+    preceding heading at a level that contains the cursor's region. When
+    the cursor is itself on a heading, returns the closest preceding
+    heading with strictly smaller level (its parent), or `nil`.
+
+------------------------------------------------------------------------------
+CONFIG                                                        *gutenberg.config*
+
+`gutenberg.setup` accepts a `gutenberg.Config` table:
+>lua
+  ---@class gutenberg.list.Config
+  ---@field marker string  -- default bullet marker for new items
+
+  ---@class gutenberg.heading.Config
+  ---@field level integer  -- default level for new headings (1..6)
+
+  ---@class gutenberg.Config
+  ---@field list gutenberg.list.Config
+  ---@field heading gutenberg.heading.Config
+
 vim: ft=help tw=78:
