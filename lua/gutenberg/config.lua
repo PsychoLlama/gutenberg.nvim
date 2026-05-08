@@ -1,13 +1,20 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
 
+---@class gutenberg.table.Config
+---@field default_alignment gutenberg.table.Alignment Default column alignment for new tables.
+
 ---@class gutenberg.Config
 ---@field list gutenberg.list.Config
+---@field table gutenberg.table.Config
 
 ---@type gutenberg.Config
 local defaults = {
   list = {
     marker = '-',
+  },
+  table = {
+    default_alignment = 'none',
   },
 }
 
