@@ -470,6 +470,15 @@ describe('gutenberg.link', function()
         assert.equal('Foo', defs.foo.label)
       end)
     end)
+
+    it('keys labels by their CommonMark-normalized form', function()
+      with_buffer({
+        '[A  B]: https://x.example',
+      }, { 1, 0 }, function(ctx)
+        local defs = link.definitions(ctx)
+        assert.equal('https://x.example', defs['a b'].url)
+      end)
+    end)
   end)
 
   describe('resolve', function()
@@ -492,6 +501,20 @@ describe('gutenberg.link', function()
         local result = link.read(ctx)
         local defs = link.definitions(ctx)
         assert.is_nil(link.resolve(result, defs))
+      end)
+    end)
+
+    it('matches labels with collapsed whitespace and case folding', function()
+      with_buffer({
+        'see [text][A  B] end',
+        '',
+        '[a b]: https://x.example',
+      }, { 1, 6 }, function(ctx)
+        local result = link.read(ctx)
+        local defs = link.definitions(ctx)
+        local def = link.resolve(result, defs)
+        assert.is_not_nil(def)
+        assert.equal('https://x.example', def.url)
       end)
     end)
 

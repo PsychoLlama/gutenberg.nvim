@@ -75,6 +75,15 @@ local function strip_label_brackets(text)
   return text
 end
 
+--- Normalize a reference label for matching per CommonMark §3.3: trim outer
+--- whitespace, collapse internal whitespace runs to a single space, and
+--- case-fold. Used as the dict key for both storing and looking up defs.
+---@param label string
+---@return string
+local function normalize_label(label)
+  return (vim.trim(label):gsub('%s+', ' ')):lower()
+end
+
 --- Strip the surrounding `< >` from a `uri_autolink` node's text.
 ---@param text string
 ---@return string
@@ -277,7 +286,7 @@ function M.definitions(ctx)
     local function visit(node)
       if node:type() == 'link_reference_definition' then
         local def = read_definition_node(node, ctx.bufnr)
-        defs[def.label:lower()] = def
+        defs[normalize_label(def.label)] = def
         return
       end
       for child in node:iter_children() do
@@ -298,7 +307,7 @@ function M.resolve(link, defs)
   if link.label == nil then
     return nil
   end
-  return defs[link.label:lower()]
+  return defs[normalize_label(link.label)]
 end
 
 --- Validate that `fields` contains the data required for `kind`.
