@@ -32,6 +32,7 @@ RECIPES                                                      *gutenberg-recipes*
 API                                                              *gutenberg-api*
 
 ------------------------------------------------------------------------------
+<<<<<<< HEAD
 HEADING                                                      *gutenberg.heading*
 
 Read and edit ATX markdown headings (`# foo`, `## bar`, ...). Setext-style
@@ -164,6 +165,107 @@ Read or write a column's |gutenberg.table.Alignment|. Errors on
 out-of-range indices.
 
 ------------------------------------------------------------------------------
+CODE BLOCK                                                *gutenberg.code_block*
+
+Read, build, and rewrite fenced markdown code blocks. Indented (4-space) code
+blocks are out of scope — fenced only.
+
+A `gutenberg.code_block.CodeBlock` table has these fields: >lua
+    {
+      indent = '',          -- leading whitespace before the opening fence
+      fence = '`',          -- '`' or '~'
+      fence_length = 3,     -- count of fence chars on the opening fence (>= 3)
+      info_string = 'lua',  -- everything after the opening fence (verbatim)
+      content = { 'foo' },  -- one entry per content line, no trailing newline
+    }
+<
+The `info_string` is stored as-is so callers can carry attributes (for example
+`{lua title="x"}`) through a round trip. Use |gutenberg.code_block.get_language|
+and |gutenberg.code_block.set_language| to manipulate just the leading token.
+
+                                       *gutenberg.code_block.is_code_block()*
+code_block.is_code_block({ctx})
+    Returns true when the cursor is inside a fenced code block (opening
+    fence, content, or closing fence). Gate calls to `read` with this.
+
+    Parameters: ~
+      • {ctx} (`gutenberg.Context.Partial?`)
+
+    Return: ~
+      `boolean`
+
+                                              *gutenberg.code_block.read()*
+code_block.read({ctx})
+    Read the fenced code block containing the cursor. Errors when the cursor
+    isn't on a code block. The returned `TSNode` captures the block's range
+    for |gutenberg.code_block.replace|.
+
+    Parameters: ~
+      • {ctx} (`gutenberg.Context.Partial?`)
+
+    Return: ~
+      `gutenberg.code_block.CodeBlock, TSNode`
+
+                                            *gutenberg.code_block.create()*
+code_block.create({fields})
+    Construct a code block from explicit fields. Missing fields fall back
+    to the configured defaults (see |gutenberg.setup|).
+
+    Parameters: ~
+      • {fields} (`{ indent?, fence?, fence_length?, info_string?, content? }`)
+
+    Return: ~
+      `gutenberg.code_block.CodeBlock`
+
+                                            *gutenberg.code_block.render()*
+code_block.render({block})
+    Render a block to buffer lines: opening fence, content, closing fence.
+    Content lines are emitted verbatim — they carry their own indentation
+    and are NOT auto-escalated when they look like a closing fence. Bump
+    `fence_length` yourself when content contains a longer-or-equal run of
+    the fence character.
+
+    Parameters: ~
+      • {block} (`gutenberg.code_block.CodeBlock`)
+
+    Return: ~
+      `string[]`
+
+                                           *gutenberg.code_block.replace()*
+code_block.replace({node}, {blocks}, {ctx})
+    Replace `node`'s range with the rendered blocks in a single buffer
+    update. Pass an empty `blocks` list to delete the node.
+
+    Parameters: ~
+      • {node}   (`TSNode`)
+      • {blocks} (`gutenberg.code_block.CodeBlock[]`)
+      • {ctx}    (`gutenberg.Context.Partial?`)
+
+                                  *gutenberg.code_block.get_info_string()*
+                                  *gutenberg.code_block.set_info_string()*
+code_block.get_info_string({block})
+code_block.set_info_string({block}, {info_string})
+    Read or replace the entire info string verbatim.
+
+                                       *gutenberg.code_block.get_content()*
+                                       *gutenberg.code_block.set_content()*
+code_block.get_content({block})
+code_block.set_content({block}, {lines})
+    Read or replace the block's content lines.
+
+                                      *gutenberg.code_block.get_language()*
+code_block.get_language({block})
+    The first whitespace-delimited token of the info string. Returns `''`
+    when the info string is empty.
+
+                                      *gutenberg.code_block.set_language()*
+code_block.set_language({block}, {language})
+    Replace the leading-language portion of the info string, preserving any
+    trailing attributes after the first whitespace. For example, calling
+    `set_language(block, 'python')` on an info string `'lua title="x"'`
+    yields `'python title="x"'`.
+
+------------------------------------------------------------------------------
 CONFIG                                                        *gutenberg.config*
 
 `gutenberg.setup` accepts a `gutenberg.Config` table:
@@ -177,9 +279,14 @@ CONFIG                                                        *gutenberg.config*
   ---@class gutenberg.table.Config
   ---@field default_alignment gutenberg.table.Alignment
 
+  ---@class gutenberg.code_block.Config
+  ---@field fence gutenberg.code_block.Fence  -- default fence char
+  ---@field fence_length integer              -- default fence length (>= 3)
+
   ---@class gutenberg.Config
   ---@field list gutenberg.list.Config
   ---@field heading gutenberg.heading.Config
   ---@field table gutenberg.table.Config
+  ---@field code_block gutenberg.code_block.Config
 
 vim: ft=help tw=78:
