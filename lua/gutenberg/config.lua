@@ -11,11 +11,15 @@
 ---@field fence gutenberg.code_block.Fence Default fence character for new code blocks.
 ---@field fence_length integer Default fence length (>= 3) for new code blocks.
 
+---@class gutenberg.link.Config
+---@field default_kind gutenberg.link.Kind Kind used when `create` omits one.
+
 ---@class gutenberg.Config
 ---@field list gutenberg.list.Config
 ---@field heading gutenberg.heading.Config
 ---@field table gutenberg.table.Config
 ---@field code_block gutenberg.code_block.Config
+---@field link gutenberg.link.Config
 
 ---@type gutenberg.Config
 local defaults = {
@@ -31,6 +35,9 @@ local defaults = {
   code_block = {
     fence = '`',
     fence_length = 3,
+  },
+  link = {
+    default_kind = 'inline',
   },
 }
 

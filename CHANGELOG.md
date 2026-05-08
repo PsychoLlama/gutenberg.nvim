@@ -24,5 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `replace`, plus `get_info_string` / `set_info_string`, `get_content` /
   `set_content`, and `get_language` / `set_language` accessors. Configurable
   defaults via `gutenberg.code_block.Config` (`fence`, `fence_length`).
+- `gutenberg.link` module for parsing and editing markdown links — inline,
+  reference (full / collapsed / shortcut), and URI autolinks — plus
+  link reference definitions exposed via `definitions` and `resolve`.
+- `gutenberg.link.Config.default_kind` to control the kind `link.create`
+  produces when one is not supplied.
 
 [Unreleased]: https://github.com/PsychoLlama/gutenberg.nvim/commits/main
