@@ -148,12 +148,22 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.replace(node, headings, ctx)
   ctx = context.resolve(ctx)
-  local sr = node:range()
+  local sr, sc = node:range()
+
+  -- When the heading is nested in a container (e.g. block quote), columns
+  -- 0..sc-1 of the start row carry the container's prefix. Capture it and
+  -- prepend to every rewritten line so the container survives the edit.
+  local prefix = ''
+  if sc > 0 then
+    local first = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, sr + 1, false)[1]
+      or ''
+    prefix = first:sub(1, sc)
+  end
 
   ---@type string[]
   local lines = {}
   for _, heading in ipairs(headings) do
-    table.insert(lines, M.render(heading))
+    table.insert(lines, prefix .. M.render(heading))
   end
 
   -- atx_heading ranges include the trailing newline (er = sr + 1), so the

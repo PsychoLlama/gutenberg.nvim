@@ -239,6 +239,32 @@ describe('gutenberg.heading', function()
         )
       end)
     end)
+
+    it('preserves a block quote prefix when rewriting in place', function()
+      with_buffer({ '> # foo' }, { 1, 4 }, function(ctx)
+        local h, node = heading.read(ctx)
+        h.text = 'bar'
+        heading.replace(node, { h }, ctx)
+        assert.same(
+          { '> # bar' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('preserves a block quote prefix when expanding to many', function()
+      with_buffer({ '> # foo' }, { 1, 4 }, function(ctx)
+        local h, node = heading.read(ctx)
+        heading.replace(node, {
+          h,
+          heading.create({ level = 2, text = 'extra' }),
+        }, ctx)
+        assert.same(
+          { '> # foo', '> ## extra' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
   end)
 
   describe('set_level', function()
