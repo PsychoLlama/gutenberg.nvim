@@ -1,13 +1,20 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
 
+---@class gutenberg.link.Config
+---@field default_kind gutenberg.link.Kind Kind used when `create` omits one.
+
 ---@class gutenberg.Config
 ---@field list gutenberg.list.Config
+---@field link gutenberg.link.Config
 
 ---@type gutenberg.Config
 local defaults = {
   list = {
     marker = '-',
+  },
+  link = {
+    default_kind = 'inline',
   },
 }
 
