@@ -4,9 +4,13 @@
 ---@class gutenberg.heading.Config
 ---@field level integer Default level for new headings (1..6).
 
+---@class gutenberg.table.Config
+---@field default_alignment gutenberg.table.Alignment Default column alignment for new tables.
+
 ---@class gutenberg.Config
 ---@field list gutenberg.list.Config
 ---@field heading gutenberg.heading.Config
+---@field table gutenberg.table.Config
 
 ---@type gutenberg.Config
 local defaults = {
@@ -15,6 +19,9 @@ local defaults = {
   },
   heading = {
     level = 1,
+  },
+  table = {
+    default_alignment = 'none',
   },
 }
 

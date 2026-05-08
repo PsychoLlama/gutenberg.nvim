@@ -19,3 +19,15 @@ gutenberg.heading.replace	gutenberg.txt	/*gutenberg.heading.replace*
 gutenberg.heading.set_level	gutenberg.txt	/*gutenberg.heading.set_level*
 gutenberg.heading.set_text	gutenberg.txt	/*gutenberg.heading.set_text*
 gutenberg.setup	gutenberg.txt	/*gutenberg.setup*
+gutenberg.table	gutenberg.txt	/*gutenberg.table*
+gutenberg.table.Alignment	gutenberg.txt	/*gutenberg.table.Alignment*
+gutenberg.table.Table	gutenberg.txt	/*gutenberg.table.Table*
+gutenberg.table.create()	gutenberg.txt	/*gutenberg.table.create()*
+gutenberg.table.get_alignment()	gutenberg.txt	/*gutenberg.table.get_alignment()*
+gutenberg.table.get_cell()	gutenberg.txt	/*gutenberg.table.get_cell()*
+gutenberg.table.is_table()	gutenberg.txt	/*gutenberg.table.is_table()*
+gutenberg.table.read()	gutenberg.txt	/*gutenberg.table.read()*
+gutenberg.table.render()	gutenberg.txt	/*gutenberg.table.render()*
+gutenberg.table.replace()	gutenberg.txt	/*gutenberg.table.replace()*
+gutenberg.table.set_alignment()	gutenberg.txt	/*gutenberg.table.set_alignment()*
+gutenberg.table.set_cell()	gutenberg.txt	/*gutenberg.table.set_cell()*

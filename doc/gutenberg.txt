@@ -93,6 +93,77 @@ find_parent({ctx})                              *gutenberg.heading.find_parent*
     heading with strictly smaller level (its parent), or `nil`.
 
 ------------------------------------------------------------------------------
+TABLES                                                         *gutenberg.table*
+
+GFM pipe table primitives. Read a table at the cursor, edit the in-memory
+struct, and write it back as a single buffer update.
+
+                                                       *gutenberg.table.Table*
+A parsed table is a plain struct: >lua
+
+  ---@class gutenberg.table.Table
+  ---@field alignments gutenberg.table.Alignment[]
+  ---@field headers string[]
+  ---@field rows string[][]
+<
+                                                   *gutenberg.table.Alignment*
+Per-column alignment is one of: `'none'`, `'left'`, `'center'`, `'right'`.
+
+                                                      *gutenberg.table.is_table()*
+`require('gutenberg.table').is_table({ctx})`
+
+Returns true if {ctx}'s cursor is on a pipe table. Gate calls to `read` with
+this. {ctx} is a `gutenberg.Context.Partial`; missing fields default to the
+current buffer and window cursor.
+
+                                                         *gutenberg.table.read()*
+`require('gutenberg.table').read({ctx})`
+
+Reads the pipe table containing the cursor. Errors if the cursor isn't on a
+pipe table. Returns the parsed |gutenberg.table.Table| and the underlying
+`pipe_table` `TSNode`. Pass the node to `replace` to write changes back.
+
+Cell text is trimmed.
+
+                                                       *gutenberg.table.create()*
+`require('gutenberg.table').create({fields})`
+
+Constructs a |gutenberg.table.Table| from explicit fields. With no fields,
+returns a 1-column table with an empty header. When `headers` is given but
+`alignments` is not, alignments default to the configured
+`default_alignment` (see |gutenberg.config|) per header column.
+
+                                                       *gutenberg.table.render()*
+`require('gutenberg.table').render({table})`
+
+Renders {table} to a list of lines (header, delimiter, body…). Each column
+is padded to the max width across the header, body, and a 3-character
+minimum delimiter.
+
+                                                      *gutenberg.table.replace()*
+`require('gutenberg.table').replace({node}, {tables}, {ctx})`
+
+Replaces {node}'s range with the rendered {tables} in a single buffer
+update. Pass an empty list to delete. Multiple tables are separated by a
+blank line so the markdown parser keeps them distinct.
+
+                                                     *gutenberg.table.get_cell()*
+                                                     *gutenberg.table.set_cell()*
+`require('gutenberg.table').get_cell({table}, {row}, {col})`
+`require('gutenberg.table').set_cell({table}, {row}, {col}, {text})`
+
+Read or write a cell. Row 0 is the header; rows 1..N are body rows. Columns
+are 1-indexed. Errors on out-of-range indices.
+
+                                                *gutenberg.table.get_alignment()*
+                                                *gutenberg.table.set_alignment()*
+`require('gutenberg.table').get_alignment({table}, {col})`
+`require('gutenberg.table').set_alignment({table}, {col}, {alignment})`
+
+Read or write a column's |gutenberg.table.Alignment|. Errors on
+out-of-range indices.
+
+------------------------------------------------------------------------------
 CONFIG                                                        *gutenberg.config*
 
 `gutenberg.setup` accepts a `gutenberg.Config` table:
@@ -103,8 +174,12 @@ CONFIG                                                        *gutenberg.config*
   ---@class gutenberg.heading.Config
   ---@field level integer  -- default level for new headings (1..6)
 
+  ---@class gutenberg.table.Config
+  ---@field default_alignment gutenberg.table.Alignment
+
   ---@class gutenberg.Config
   ---@field list gutenberg.list.Config
   ---@field heading gutenberg.heading.Config
+  ---@field table gutenberg.table.Config
 
 vim: ft=help tw=78:
