@@ -1,13 +1,22 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
 
+---@class gutenberg.code_block.Config
+---@field fence gutenberg.code_block.Fence Default fence character for new code blocks.
+---@field fence_length integer Default fence length (>= 3) for new code blocks.
+
 ---@class gutenberg.Config
 ---@field list gutenberg.list.Config
+---@field code_block gutenberg.code_block.Config
 
 ---@type gutenberg.Config
 local defaults = {
   list = {
     marker = '-',
+  },
+  code_block = {
+    fence = '`',
+    fence_length = 3,
   },
 }
 
