@@ -7,4 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `gutenberg.heading` module for reading and editing ATX markdown headings,
+  with landmark navigation primitives (`list`, `find_next`, `find_prev`,
+  `find_parent`) and a `gutenberg.heading.Config` carrying the default level
+  for `create`.
+
 [Unreleased]: https://github.com/PsychoLlama/gutenberg.nvim/commits/main

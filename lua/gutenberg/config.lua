@@ -1,13 +1,20 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
 
+---@class gutenberg.heading.Config
+---@field level integer Default level for new headings (1..6).
+
 ---@class gutenberg.Config
 ---@field list gutenberg.list.Config
+---@field heading gutenberg.heading.Config
 
 ---@type gutenberg.Config
 local defaults = {
   list = {
     marker = '-',
+  },
+  heading = {
+    level = 1,
   },
 }
 
