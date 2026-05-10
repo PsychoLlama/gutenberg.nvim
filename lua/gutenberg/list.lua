@@ -203,6 +203,63 @@ function M.replace_list(list_node, entries, ctx)
   vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row, false, lines)
 end
 
+--- The last row owned by `node` (inclusive). list_item / list ranges can
+--- extend past their content into trailing blanks; clamp to the last row
+--- with non-whitespace text so we don't mangle unrelated rows.
+---@param node TSNode
+---@param bufnr integer
+---@return integer sr, integer end_row
+local function content_rows(node, bufnr)
+  local sr, _, er, ec = node:range()
+  local last = ec == 0 and er - 1 or er
+  local lines = vim.api.nvim_buf_get_lines(bufnr, sr, last + 1, false)
+  for i = #lines, 1, -1 do
+    if lines[i]:match('%S') ~= nil then
+      return sr, sr + i - 1
+    end
+  end
+  return sr, sr
+end
+
+--- Shift the leading whitespace of `node`'s range right by
+--- `config.list.indent`. Use to nest a list_item under its previous
+--- sibling. Single buffer update; nested children move with the parent.
+---@param node TSNode A `list_item` node.
+---@param ctx? gutenberg.Context.Partial
+function M.indent(node, ctx)
+  ctx = context.resolve(ctx)
+  local cfg = require('gutenberg.config').get().list
+  local sr, end_row = content_rows(node, ctx.bufnr)
+  local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
+  for i, line in ipairs(lines) do
+    lines[i] = cfg.indent .. line
+  end
+  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row + 1, false, lines)
+end
+
+--- Shift the leading whitespace of `node`'s range left by
+--- `config.list.indent`. Errors when any non-blank line lacks the required
+--- leading whitespace. Single buffer update.
+---@param node TSNode A `list_item` node.
+---@param ctx? gutenberg.Context.Partial
+function M.dedent(node, ctx)
+  ctx = context.resolve(ctx)
+  local cfg = require('gutenberg.config').get().list
+  local sr, end_row = content_rows(node, ctx.bufnr)
+  local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
+  local strip = #cfg.indent
+  for i, line in ipairs(lines) do
+    if line:match('%S') ~= nil then
+      local prefix = line:sub(1, strip)
+      if #prefix < strip or prefix:match('^%s+$') == nil then
+        error('cannot dedent: line lacks ' .. strip .. ' leading whitespace')
+      end
+      lines[i] = line:sub(strip + 1)
+    end
+  end
+  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row + 1, false, lines)
+end
+
 --- Get the marker on an item.
 ---@param item gutenberg.list.Item
 ---@return string

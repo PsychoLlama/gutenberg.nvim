@@ -401,4 +401,92 @@ describe('gutenberg.list', function()
       end)
     end)
   end)
+
+  describe('indent', function()
+    it('shifts a leaf item right by config.list.indent', function()
+      with_buffer({ '- foo', '- bar' }, { 1, 2 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.indent(node, ctx)
+        assert.same(
+          { '  - foo', '- bar' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('shifts an item and its nested children together', function()
+      with_buffer(
+        { '- outer', '  - inner', '- last' },
+        { 1, 2 },
+        function(ctx)
+          local _, node = list.read(ctx)
+          list.indent(node, ctx)
+          assert.same({
+            '  - outer',
+            '    - inner',
+            '- last',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end
+      )
+    end)
+
+    it('honors a custom config.list.indent', function()
+      require('gutenberg.config').merge({ list = { indent = '\t' } })
+      local ok, err = pcall(function()
+        with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
+          local _, node = list.read(ctx)
+          list.indent(node, ctx)
+          assert.same(
+            { '\t- foo' },
+            vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+          )
+        end)
+      end)
+      require('gutenberg.config').merge({})
+      if not ok then
+        error(err)
+      end
+    end)
+  end)
+
+  describe('dedent', function()
+    it('shifts a nested item left by config.list.indent', function()
+      with_buffer({ '- outer', '  - inner' }, { 2, 4 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.dedent(node, ctx)
+        assert.same(
+          { '- outer', '- inner' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('shifts an item and its nested children together', function()
+      with_buffer(
+        { '  - outer', '    - inner', '- last' },
+        { 1, 4 },
+        function(ctx)
+          local _, node = list.read(ctx)
+          list.dedent(node, ctx)
+          assert.same({
+            '- outer',
+            '  - inner',
+            '- last',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end
+      )
+    end)
+
+    it(
+      'errors when the item lacks the required leading whitespace',
+      function()
+        with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
+          local _, node = list.read(ctx)
+          assert.has_error(function()
+            list.dedent(node, ctx)
+          end)
+        end)
+      end
+    )
+  end)
 end)

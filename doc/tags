@@ -44,6 +44,8 @@ gutenberg.link.resolve()	gutenberg.txt	/*gutenberg.link.resolve()*
 gutenberg.list	gutenberg.txt	/*gutenberg.list*
 gutenberg.list-accessors	gutenberg.txt	/*gutenberg.list-accessors*
 gutenberg.list.create	gutenberg.txt	/*gutenberg.list.create*
+gutenberg.list.dedent	gutenberg.txt	/*gutenberg.list.dedent*
+gutenberg.list.indent	gutenberg.txt	/*gutenberg.list.indent*
 gutenberg.list.is_list_item	gutenberg.txt	/*gutenberg.list.is_list_item*
 gutenberg.list.read	gutenberg.txt	/*gutenberg.list.read*
 gutenberg.list.read_list	gutenberg.txt	/*gutenberg.list.read_list*

@@ -1,5 +1,6 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
+---@field indent string Whitespace inserted/removed by `indent` / `dedent`.
 
 ---@class gutenberg.heading.Config
 ---@field level integer Default level for new headings (1..6).
@@ -25,6 +26,7 @@
 local defaults = {
   list = {
     marker = '-',
+    indent = '  ',
   },
   heading = {
     level = 1,

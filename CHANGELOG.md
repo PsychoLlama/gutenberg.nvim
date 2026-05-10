@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parent `list` and its direct sibling items, with single-buffer-update
   marker rewrites that preserve nested children. Compose with
   `set_marker` to switch ordered ↔ unordered (or renumber) at a level.
+- `gutenberg.list.indent` / `gutenberg.list.dedent` shift a list item's
+  subtree by `gutenberg.list.Config.indent` (default `'  '`). Nested
+  children move with the parent; `dedent` errors when a non-blank line
+  lacks the required leading whitespace.
+- `gutenberg.list.Config.indent` controls the whitespace unit used by
+  `indent` / `dedent`.
 - `gutenberg.heading` module for reading and editing ATX markdown headings,
   with landmark navigation primitives (`list`, `find_next`, `find_prev`,
   `find_parent`) and a `gutenberg.heading.Config` carrying the default level

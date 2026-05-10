@@ -86,6 +86,18 @@ replace_list({list_node}, {entries}, {ctx})
     siblings (e.g. unordered → ordered): `read_list`, mutate each
     entry's `item` with `set_marker`, then `replace_list`.
 
+                                                        *gutenberg.list.indent*
+indent({node}, {ctx})
+    Shift the leading whitespace of `node`'s range right by
+    `gutenberg.list.Config.indent` (default `'  '`). Nested children move
+    with the parent. Single buffer update.
+
+                                                        *gutenberg.list.dedent*
+dedent({node}, {ctx})
+    Shift the leading whitespace of `node`'s range left by
+    `gutenberg.list.Config.indent`. Errors when any non-blank line lacks
+    that much leading whitespace. Single buffer update.
+
 Field accessors:                                          *gutenberg.list-accessors*
     `get_marker(item)` / `set_marker(item, marker)`
     `get_checkbox(item)` / `set_checkbox(item, state)`
@@ -412,6 +424,7 @@ CONFIG                                                        *gutenberg.config*
 >lua
   ---@class gutenberg.list.Config
   ---@field marker string  -- default bullet marker for new items
+  ---@field indent string  -- indent unit for `indent` / `dedent` (default '  ')
 
   ---@class gutenberg.heading.Config
   ---@field level integer  -- default level for new headings (1..6)
