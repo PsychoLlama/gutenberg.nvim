@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `gutenberg.list.read_list` / `gutenberg.list.replace_list` expose the
+  parent `list` and its direct sibling items, with single-buffer-update
+  marker rewrites that preserve nested children. Compose with
+  `set_marker` to switch ordered ↔ unordered (or renumber) at a level.
 - `gutenberg.heading` module for reading and editing ATX markdown headings,
   with landmark navigation primitives (`list`, `find_next`, `find_prev`,
   `find_parent`) and a `gutenberg.heading.Config` carrying the default level

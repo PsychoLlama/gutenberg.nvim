@@ -32,6 +32,68 @@ RECIPES                                                      *gutenberg-recipes*
 API                                                              *gutenberg-api*
 
 ------------------------------------------------------------------------------
+LIST                                                            *gutenberg.list*
+
+Read and edit markdown list items. A list item is one row of bullet (`-`,
+`*`, `+`) or ordered (`1.`) marker plus optional checkbox and text. Nested
+items are themselves `list_item` nodes inside a child `list`.
+
+A `gutenberg.list.Item` table has these fields: >lua
+    {
+      indent = '',     -- leading whitespace before the marker
+      marker = '-',    -- '-', '*', '+', or e.g. '1.'
+      checkbox = nil,  -- nil, ' ', 'x', or any single-char state
+      text = 'foo',    -- content after marker (and checkbox, if present)
+    }
+<
+                                                  *gutenberg.list.is_list_item*
+is_list_item({ctx})
+    Whether the cursor is on a list item. Gate calls to `read` with this.
+
+                                                          *gutenberg.list.read*
+read({ctx})
+    Read the item containing the cursor. Returns
+    `(gutenberg.list.Item, TSNode)`. Errors when the cursor isn't on a
+    list item.
+
+                                                        *gutenberg.list.create*
+create({fields})
+    Build an item from `{ indent?, marker?, checkbox?, text? }`. Missing
+    fields fall back to `gutenberg.list.Config` (default `marker = '-'`).
+
+                                                        *gutenberg.list.render*
+render({item})
+    Render an item to a single line of buffer text.
+
+                                                       *gutenberg.list.replace*
+replace({node}, {items}, {ctx})
+    Replace `node`'s marker row with the rendered `items` in a single
+    buffer update. Pass an empty list to delete the item. To insert a
+    sibling, pass `{ existing, new }` (append) or `{ new, existing }`
+    (prepend) — no helper needed.
+
+                                                     *gutenberg.list.read_list*
+read_list({ctx})
+    Read every direct sibling of the cursor's item. Returns
+    `({ item, node }[], list_node)` in document order. The `list_node` is
+    the parent `list` TSNode — pass it back to `replace_list`. Errors when
+    the cursor isn't on a list item.
+
+                                                  *gutenberg.list.replace_list*
+replace_list({list_node}, {entries}, {ctx})
+    Rewrite the marker rows of each entry in a single buffer update.
+    Nested children are preserved verbatim. Use to switch markers across
+    siblings (e.g. unordered → ordered): `read_list`, mutate each
+    entry's `item` with `set_marker`, then `replace_list`.
+
+Field accessors:                                          *gutenberg.list-accessors*
+    `get_marker(item)` / `set_marker(item, marker)`
+    `get_checkbox(item)` / `set_checkbox(item, state)`
+        Raw checkbox character. Pass nil to remove.
+    `is_checked(item)` / `set_checked(item, checked)`
+        Boolean view; `set_checked` adds a checkbox if absent.
+
+------------------------------------------------------------------------------
 HEADING                                                      *gutenberg.heading*
 
 Read and edit ATX markdown headings (`# foo`, `## bar`, ...). Setext-style

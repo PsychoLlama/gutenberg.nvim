@@ -41,6 +41,15 @@ gutenberg.link.read_definition()	gutenberg.txt	/*gutenberg.link.read_definition(
 gutenberg.link.render()	gutenberg.txt	/*gutenberg.link.render()*
 gutenberg.link.replace()	gutenberg.txt	/*gutenberg.link.replace()*
 gutenberg.link.resolve()	gutenberg.txt	/*gutenberg.link.resolve()*
+gutenberg.list	gutenberg.txt	/*gutenberg.list*
+gutenberg.list-accessors	gutenberg.txt	/*gutenberg.list-accessors*
+gutenberg.list.create	gutenberg.txt	/*gutenberg.list.create*
+gutenberg.list.is_list_item	gutenberg.txt	/*gutenberg.list.is_list_item*
+gutenberg.list.read	gutenberg.txt	/*gutenberg.list.read*
+gutenberg.list.read_list	gutenberg.txt	/*gutenberg.list.read_list*
+gutenberg.list.render	gutenberg.txt	/*gutenberg.list.render*
+gutenberg.list.replace	gutenberg.txt	/*gutenberg.list.replace*
+gutenberg.list.replace_list	gutenberg.txt	/*gutenberg.list.replace_list*
 gutenberg.setup	gutenberg.txt	/*gutenberg.setup*
 gutenberg.table	gutenberg.txt	/*gutenberg.table*
 gutenberg.table.Alignment	gutenberg.txt	/*gutenberg.table.Alignment*

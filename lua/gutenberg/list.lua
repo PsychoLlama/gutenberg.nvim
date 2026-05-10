@@ -36,18 +36,12 @@ function M.is_list_item(ctx)
   return find_list_item(context.resolve(ctx)) ~= nil
 end
 
---- Read the list item containing the cursor. Errors if the cursor isn't on
---- a list item; validate with `is_list_item` first. The returned `TSNode`
---- captures the item's range for `replace`.
----@param ctx? gutenberg.Context.Partial
----@return gutenberg.list.Item, TSNode
-function M.read(ctx)
-  ctx = context.resolve(ctx)
-  local node = find_list_item(ctx)
-  if node == nil then
-    error('cursor is not on a list item')
-  end
-
+--- Decode a `list_item` node into an item struct. Errors if the node is
+--- missing a marker.
+---@param node TSNode
+---@param bufnr integer
+---@return gutenberg.list.Item
+local function decode_item(node, bufnr)
   local marker_node
   for child in node:iter_children() do
     if child:type():sub(1, 12) == 'list_marker_' then
@@ -60,8 +54,7 @@ function M.read(ctx)
   end
 
   local sr = node:range()
-  local line = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, sr + 1, false)[1]
-    or ''
+  local line = vim.api.nvim_buf_get_lines(bufnr, sr, sr + 1, false)[1] or ''
   local _, msc, _, mec = marker_node:range()
 
   local indent = line:sub(1, msc)
@@ -78,8 +71,37 @@ function M.read(ctx)
     marker = marker,
     checkbox = checkbox,
     text = text,
-  },
-    node
+  }
+end
+
+--- Walk up from the cursor's `list_item` to the enclosing `list` node, or
+--- nil when the cursor isn't on a list item.
+---@param ctx gutenberg.Context
+---@return TSNode?
+local function find_list(ctx)
+  local item = find_list_item(ctx)
+  if item == nil then
+    return nil
+  end
+  local parent = item:parent()
+  if parent == nil or parent:type() ~= 'list' then
+    return nil
+  end
+  return parent
+end
+
+--- Read the list item containing the cursor. Errors if the cursor isn't on
+--- a list item; validate with `is_list_item` first. The returned `TSNode`
+--- captures the item's range for `replace`.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.list.Item, TSNode
+function M.read(ctx)
+  ctx = context.resolve(ctx)
+  local node = find_list_item(ctx)
+  if node == nil then
+    error('cursor is not on a list item')
+  end
+  return decode_item(node, ctx.bufnr), node
 end
 
 --- Construct a list item from explicit fields. Missing fields fall back to
@@ -129,6 +151,56 @@ function M.replace(node, items, ctx)
   -- marker's row — anything below sr is a nested child or whitespace we
   -- shouldn't touch.
   vim.api.nvim_buf_set_lines(ctx.bufnr, sr, sr + 1, false, lines)
+end
+
+--- Read every direct sibling of the cursor's list item. Returns the entries
+--- in document order along with the parent `list` node (pass to
+--- `replace_list`). Errors if the cursor isn't on a list item.
+---@param ctx? gutenberg.Context.Partial
+---@return { item: gutenberg.list.Item, node: TSNode }[], TSNode
+function M.read_list(ctx)
+  ctx = context.resolve(ctx)
+  local list_node = find_list(ctx)
+  if list_node == nil then
+    error('cursor is not on a list item')
+  end
+
+  ---@type { item: gutenberg.list.Item, node: TSNode }[]
+  local entries = {}
+  for child in list_node:iter_children() do
+    if child:type() == 'list_item' then
+      table.insert(
+        entries,
+        { item = decode_item(child, ctx.bufnr), node = child }
+      )
+    end
+  end
+  return entries, list_node
+end
+
+--- Rewrite the marker rows of `entries` in a single buffer update. Each
+--- entry's `node` selects the row to overwrite; nested children below that
+--- row are preserved verbatim. Use this to switch markers (e.g. ordered ↔
+--- unordered) across siblings without disturbing their content.
+---@param list_node TSNode The parent list returned by `read_list`.
+---@param entries { item: gutenberg.list.Item, node: TSNode }[]
+---@param ctx? gutenberg.Context.Partial
+function M.replace_list(list_node, entries, ctx)
+  ctx = context.resolve(ctx)
+  local sr, _, er, ec = list_node:range()
+  local end_row = ec == 0 and er or er + 1
+  local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row, false)
+
+  for _, entry in ipairs(entries) do
+    local item_sr = entry.node:range()
+    local idx = item_sr - sr + 1
+    if idx < 1 or idx > #lines then
+      error('entry node falls outside the list range')
+    end
+    lines[idx] = M.render(entry.item)
+  end
+
+  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row, false, lines)
 end
 
 --- Get the marker on an item.

@@ -293,4 +293,112 @@ describe('gutenberg.list', function()
       end
     )
   end)
+
+  describe('read_list', function()
+    it('returns every direct sibling at the cursor level', function()
+      with_buffer({ '- foo', '- bar', '- baz' }, { 2, 2 }, function(ctx)
+        local entries = list.read_list(ctx)
+        assert.equal(3, #entries)
+        assert.equal('foo', entries[1].item.text)
+        assert.equal('bar', entries[2].item.text)
+        assert.equal('baz', entries[3].item.text)
+      end)
+    end)
+
+    it('returns the parent list TSNode', function()
+      with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
+        local _, list_node = list.read_list(ctx)
+        assert.equal('list', list_node:type())
+      end)
+    end)
+
+    it('limits siblings to the cursor item level when nested', function()
+      with_buffer(
+        { '- outer', '  - inner1', '  - inner2', '- last' },
+        { 2, 4 },
+        function(ctx)
+          local entries = list.read_list(ctx)
+          assert.equal(2, #entries)
+          assert.equal('inner1', entries[1].item.text)
+          assert.equal('inner2', entries[2].item.text)
+        end
+      )
+    end)
+
+    it('errors when the cursor is not on a list item', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.has_error(function()
+          list.read_list(ctx)
+        end)
+      end)
+    end)
+  end)
+
+  describe('replace_list', function()
+    it('rewrites the marker on every sibling in one update', function()
+      with_buffer({ '- foo', '- bar', '- baz' }, { 1, 2 }, function(ctx)
+        local entries, list_node = list.read_list(ctx)
+        for i, entry in ipairs(entries) do
+          list.set_marker(entry.item, i .. '.')
+        end
+        list.replace_list(list_node, entries, ctx)
+        assert.same(
+          { '1. foo', '2. bar', '3. baz' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('preserves nested children verbatim', function()
+      with_buffer(
+        { '- outer1', '  - inner', '- outer2' },
+        { 1, 2 },
+        function(ctx)
+          local entries, list_node = list.read_list(ctx)
+          for _, entry in ipairs(entries) do
+            list.set_marker(entry.item, '*')
+          end
+          list.replace_list(list_node, entries, ctx)
+          assert.same({
+            '* outer1',
+            '  - inner',
+            '* outer2',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end
+      )
+    end)
+
+    it('preserves surrounding non-list content', function()
+      with_buffer(
+        { '# heading', '', '- foo', '- bar', '', 'paragraph' },
+        { 3, 2 },
+        function(ctx)
+          local entries, list_node = list.read_list(ctx)
+          list.set_marker(entries[1].item, '*')
+          list.set_marker(entries[2].item, '*')
+          list.replace_list(list_node, entries, ctx)
+          assert.same({
+            '# heading',
+            '',
+            '* foo',
+            '* bar',
+            '',
+            'paragraph',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end
+      )
+    end)
+
+    it('rewrites a subset of siblings without touching the rest', function()
+      with_buffer({ '- foo', '- bar', '- baz' }, { 1, 2 }, function(ctx)
+        local entries, list_node = list.read_list(ctx)
+        list.set_marker(entries[2].item, '*')
+        list.replace_list(list_node, { entries[2] }, ctx)
+        assert.same(
+          { '- foo', '* bar', '- baz' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+  end)
 end)
