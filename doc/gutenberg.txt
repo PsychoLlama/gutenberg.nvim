@@ -428,8 +428,9 @@ CONFIG                                                        *gutenberg.config*
 `gutenberg.setup` accepts a `gutenberg.Config` table:
 >lua
   ---@class gutenberg.list.Config
-  ---@field marker string  -- default bullet marker for new items
-  ---@field indent string  -- indent unit for `indent` / `dedent` (default '  ')
+  ---@field marker string           -- default bullet marker for new items
+  ---@field indent string           -- indent unit for `indent` / `dedent` (default '  ')
+  ---@field default_checked boolean -- state of a newly-inserted checkbox (default true)
 
   ---@class gutenberg.heading.Config
   ---@field level integer  -- default level for new headings (1..6)

@@ -1,6 +1,7 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
 ---@field indent string Whitespace inserted/removed by `indent` / `dedent`.
+---@field default_checked boolean State of a newly-inserted checkbox. Callers driving a "toggle" keymap should read this when promoting an item to a checkbox so the inserted state respects user preference.
 
 ---@class gutenberg.heading.Config
 ---@field level integer Default level for new headings (1..6).
@@ -27,6 +28,7 @@ local defaults = {
   list = {
     marker = '-',
     indent = '  ',
+    default_checked = true,
   },
   heading = {
     level = 1,

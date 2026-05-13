@@ -426,6 +426,26 @@ describe('gutenberg.list', function()
     end)
   end)
 
+  describe('config.default_checked', function()
+    it('defaults to true', function()
+      require('gutenberg.config').merge()
+      assert.is_true(require('gutenberg.config').get().list.default_checked)
+    end)
+
+    it('honors an override from setup', function()
+      require('gutenberg.config').merge({ list = { default_checked = false } })
+      local ok, err = pcall(function()
+        assert.is_false(
+          require('gutenberg.config').get().list.default_checked
+        )
+      end)
+      require('gutenberg.config').merge()
+      if not ok then
+        error(err)
+      end
+    end)
+  end)
+
   describe('is_ordered', function()
     it('returns true for `1.` markers', function()
       assert.is_true(list.is_ordered({ marker = '1.' }))
