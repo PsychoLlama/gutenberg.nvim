@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `require('gutenberg').<submodule>` lazily resolves to
+  `require('gutenberg.<submodule>')` on first access, so plugins can
+  treat the root as a namespace without paying any startup-time
+  require cost for submodules they don't touch.
 - `gutenberg.list.is_ordered` / `gutenberg.list.set_ordered` switch a
   list item between ordered (`1.`) and unordered (config marker)
   without cycling through every bullet variant.

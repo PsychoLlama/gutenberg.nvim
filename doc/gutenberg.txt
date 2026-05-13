@@ -21,6 +21,11 @@ Add the following to your `init.lua`:
   require('gutenberg').setup{
     -- ...
   }
+<
+The root module also offers lazy access to every submodule, so
+`require('gutenberg').list` is equivalent to `require('gutenberg.list')`
+but defers the underlying require until first use. Cached after the
+first reference.
 
 ------------------------------------------------------------------------------
 KEYBINDINGS                                              *gutenberg-keybindings*
