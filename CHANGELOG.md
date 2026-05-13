@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   buffer write when the rendered output equals the existing range, so
   no-op edits (e.g. promoting an h1 to h1) no longer add an undo entry.
 
+### Changed
+
+- `gutenberg.list.Config.indent` is now optional. When unset (the
+  default), `list.indent` / `list.dedent` derive the indent unit from
+  the target buffer's `&expandtab` and `&tabstop` so a single keymap
+  honors per-buffer indentation. Explicitly setting `list.indent`
+  still overrides.
+
 ### Added
 
 - `require('gutenberg').<submodule>` lazily resolves to

@@ -3,9 +3,16 @@ local list = require('gutenberg.list')
 ---@param lines string[]
 ---@param cursor [integer, integer]
 ---@param fn fun(ctx: gutenberg.Context)
-local function with_buffer(lines, cursor, fn)
+---@param opts? { expandtab?: boolean, tabstop?: integer }
+local function with_buffer(lines, cursor, fn, opts)
+  opts = opts or {}
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.bo[bufnr].filetype = 'markdown'
+  -- Pin buffer indentation so tests that rely on the default
+  -- `list.indent` (derived from `&expandtab` / `&tabstop`) are
+  -- predictable across host configurations.
+  vim.bo[bufnr].expandtab = opts.expandtab ~= false
+  vim.bo[bufnr].tabstop = opts.tabstop or 2
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
   local ok, err = pcall(fn, { bufnr = bufnr, cursor = cursor })
   vim.api.nvim_buf_delete(bufnr, { force = true })
@@ -558,6 +565,28 @@ describe('gutenberg.list', function()
       if not ok then
         error(err)
       end
+    end)
+
+    it("falls back to the buffer's tabstop when expandtab is on", function()
+      with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.indent(node, ctx)
+        assert.same(
+          { '    - foo' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { expandtab = true, tabstop = 4 })
+    end)
+
+    it('falls back to a literal tab when expandtab is off', function()
+      with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.indent(node, ctx)
+        assert.same(
+          { '\t- foo' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { expandtab = false })
     end)
   end)
 

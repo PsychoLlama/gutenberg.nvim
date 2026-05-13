@@ -250,33 +250,51 @@ local function content_rows(node, bufnr)
   return sr, sr
 end
 
---- Shift the leading whitespace of `node`'s range right by
---- `config.list.indent`. Use to nest a list_item under its previous
---- sibling. Single buffer update; nested children move with the parent.
+--- The indent unit used by `indent` / `dedent`. Honors a configured
+--- `list.indent`; falls back to the buffer's `&expandtab` and
+--- `&tabstop` so the result matches whatever indentation the buffer is
+--- already using.
+---@param bufnr integer
+---@return string
+local function resolve_indent(bufnr)
+  local configured = require('gutenberg.config').get().list.indent
+  if configured ~= nil then
+    return configured
+  end
+  if not vim.bo[bufnr].expandtab then
+    return '\t'
+  end
+  return string.rep(' ', vim.bo[bufnr].tabstop)
+end
+
+--- Shift the leading whitespace of `node`'s range right by one indent
+--- unit (see `gutenberg.list.Config.indent`). Use to nest a list_item
+--- under its previous sibling. Single buffer update; nested children
+--- move with the parent.
 ---@param node TSNode A `list_item` node.
 ---@param ctx? gutenberg.Context.Partial
 function M.indent(node, ctx)
   ctx = context.resolve(ctx)
-  local cfg = require('gutenberg.config').get().list
+  local indent = resolve_indent(ctx.bufnr)
   local sr, end_row = content_rows(node, ctx.bufnr)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
   for i, line in ipairs(lines) do
-    lines[i] = cfg.indent .. line
+    lines[i] = indent .. line
   end
   buffer.set_lines(ctx.bufnr, sr, end_row + 1, lines)
 end
 
---- Shift the leading whitespace of `node`'s range left by
---- `config.list.indent`. Errors when any non-blank line lacks the required
---- leading whitespace. Single buffer update.
+--- Shift the leading whitespace of `node`'s range left by one indent
+--- unit (see `gutenberg.list.Config.indent`). Errors when any non-blank
+--- line lacks the required leading whitespace. Single buffer update.
 ---@param node TSNode A `list_item` node.
 ---@param ctx? gutenberg.Context.Partial
 function M.dedent(node, ctx)
   ctx = context.resolve(ctx)
-  local cfg = require('gutenberg.config').get().list
+  local indent = resolve_indent(ctx.bufnr)
   local sr, end_row = content_rows(node, ctx.bufnr)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
-  local strip = #cfg.indent
+  local strip = #indent
   for i, line in ipairs(lines) do
     if line:match('%S') ~= nil then
       local prefix = line:sub(1, strip)

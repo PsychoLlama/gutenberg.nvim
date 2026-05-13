@@ -93,15 +93,17 @@ replace_list({list_node}, {entries}, {ctx})
 
                                                         *gutenberg.list.indent*
 indent({node}, {ctx})
-    Shift the leading whitespace of `node`'s range right by
-    `gutenberg.list.Config.indent` (default `'  '`). Nested children move
-    with the parent. Single buffer update.
+    Shift the leading whitespace of `node`'s range right by one indent
+    unit. The unit comes from `gutenberg.list.Config.indent`; when that
+    is unset (the default), it is derived from the target buffer's
+    `&expandtab` and `&tabstop`. Nested children move with the parent.
+    Single buffer update.
 
                                                         *gutenberg.list.dedent*
 dedent({node}, {ctx})
-    Shift the leading whitespace of `node`'s range left by
-    `gutenberg.list.Config.indent`. Errors when any non-blank line lacks
-    that much leading whitespace. Single buffer update.
+    Shift the leading whitespace of `node`'s range left by one indent
+    unit (same resolution as `indent`). Errors when any non-blank line
+    lacks that much leading whitespace. Single buffer update.
 
 Field accessors:                                          *gutenberg.list-accessors*
     `get_marker(item)` / `set_marker(item, marker)`
@@ -434,7 +436,7 @@ CONFIG                                                        *gutenberg.config*
 >lua
   ---@class gutenberg.list.Config
   ---@field marker string           -- default bullet marker for new items
-  ---@field indent string           -- indent unit for `indent` / `dedent` (default '  ')
+  ---@field indent? string          -- indent unit for `indent` / `dedent`; nil = derive from buffer `&expandtab`/`&tabstop`
   ---@field default_checked boolean -- state of a newly-inserted checkbox (default true)
 
   ---@class gutenberg.heading.Config
