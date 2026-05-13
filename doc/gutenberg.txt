@@ -100,6 +100,11 @@ dedent({node}, {ctx})
 
 Field accessors:                                          *gutenberg.list-accessors*
     `get_marker(item)` / `set_marker(item, marker)`
+    `is_ordered(item)` / `set_ordered(item, ordered)`
+        Switch an item between ordered (`1.`, `2)`, ...) and unordered.
+        `set_ordered` uses `gutenberg.list.Config.marker` for the
+        unordered marker and `1.` for ordered. Combine with `set_marker`
+        and `replace_list` to renumber siblings.
     `get_checkbox(item)` / `set_checkbox(item, state)`
         Raw checkbox character. Pass nil to remove.
     `is_checked(item)` / `set_checked(item, checked)`

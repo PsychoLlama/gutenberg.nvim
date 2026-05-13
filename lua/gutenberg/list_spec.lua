@@ -426,6 +426,74 @@ describe('gutenberg.list', function()
     end)
   end)
 
+  describe('is_ordered', function()
+    it('returns true for `1.` markers', function()
+      assert.is_true(list.is_ordered({ marker = '1.' }))
+    end)
+
+    it('returns true for `1)` markers', function()
+      assert.is_true(list.is_ordered({ marker = '1)' }))
+    end)
+
+    it('returns true for multi-digit markers', function()
+      assert.is_true(list.is_ordered({ marker = '42.' }))
+    end)
+
+    it('returns false for bullet markers', function()
+      assert.is_false(list.is_ordered({ marker = '-' }))
+      assert.is_false(list.is_ordered({ marker = '*' }))
+      assert.is_false(list.is_ordered({ marker = '+' }))
+    end)
+  end)
+
+  describe('set_ordered', function()
+    it('promotes an unordered item to `1.`', function()
+      local item = { marker = '-' }
+      list.set_ordered(item, true)
+      assert.equal('1.', item.marker)
+    end)
+
+    it('leaves an already-ordered marker untouched', function()
+      local item = { marker = '3.' }
+      list.set_ordered(item, true)
+      assert.equal('3.', item.marker)
+    end)
+
+    it('demotes to the configured bullet marker', function()
+      require('gutenberg.config').merge({ list = { marker = '*' } })
+      local ok, err = pcall(function()
+        local item = { marker = '1.' }
+        list.set_ordered(item, false)
+        assert.equal('*', item.marker)
+      end)
+      require('gutenberg.config').merge()
+      if not ok then
+        error(err)
+      end
+    end)
+
+    it('leaves an already-bullet marker untouched', function()
+      local item = { marker = '+' }
+      list.set_ordered(item, false)
+      assert.equal('+', item.marker)
+    end)
+
+    it('composes with replace_list to renumber siblings', function()
+      with_buffer({ '- foo', '- bar', '- baz' }, { 1, 2 }, function(ctx)
+        local entries, list_node = list.read_list(ctx)
+        for i, entry in ipairs(entries) do
+          list.set_ordered(entry.item, true)
+          list.set_marker(entry.item, i .. '.')
+        end
+        list.replace_list(list_node, entries, ctx)
+        assert.same(
+          { '1. foo', '2. bar', '3. baz' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+  end)
+
   describe('indent', function()
     it('shifts a leaf item right by config.list.indent', function()
       with_buffer({ '- foo', '- bar' }, { 1, 2 }, function(ctx)

@@ -303,6 +303,33 @@ function M.set_marker(item, marker)
   item.marker = marker
 end
 
+--- Whether the item carries an ordered marker (`1.`, `2)`, etc.) as
+--- opposed to a bullet (`-`, `*`, `+`).
+---@param item gutenberg.list.Item
+---@return boolean
+function M.is_ordered(item)
+  return item.marker:match('^%d+[%.%)]$') ~= nil
+end
+
+--- Switch an item between ordered and unordered. The unordered marker
+--- falls back to `gutenberg.list.Config.marker`; the ordered marker
+--- defaults to `1.`. Callers wanting sequential numbering across a list
+--- should follow up with `set_marker(item, n .. '.')` per entry and
+--- write the result with `replace_list`.
+---@param item gutenberg.list.Item
+---@param ordered boolean
+function M.set_ordered(item, ordered)
+  if ordered then
+    if not M.is_ordered(item) then
+      item.marker = '1.'
+    end
+    return
+  end
+  if M.is_ordered(item) then
+    item.marker = require('gutenberg.config').get().list.marker
+  end
+end
+
 --- Get the checkbox state on an item, or nil if there is no checkbox.
 ---@param item gutenberg.list.Item
 ---@return string?

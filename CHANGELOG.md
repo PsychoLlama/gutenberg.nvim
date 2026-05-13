@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `gutenberg.list.is_ordered` / `gutenberg.list.set_ordered` switch a
+  list item between ordered (`1.`) and unordered (config marker)
+  without cycling through every bullet variant.
 - `gutenberg.list.read_list` / `gutenberg.list.replace_list` expose the
   parent `list` and its direct sibling items, with single-buffer-update
   marker rewrites that preserve nested children. Compose with
