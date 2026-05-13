@@ -5,6 +5,7 @@
 ---@field headers string[] Header cell text, trimmed.
 ---@field rows string[][] Body cells, per row then per column, trimmed.
 
+local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
 local M = {}
@@ -270,7 +271,7 @@ function M.replace(node, tables, ctx)
     end
   end
 
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, er + 1, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, er + 1, lines)
 end
 
 --- Get a cell's text. Row 0 is the header; rows 1..N are body rows.

@@ -7,6 +7,7 @@
 ---@field info_string string Everything after the opening fence, trimmed of trailing whitespace ('' if none).
 ---@field content string[] Code content, one entry per line, no trailing newline. Empty list = empty block.
 
+local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
 local M = {}
@@ -180,7 +181,7 @@ function M.replace(node, blocks, ctx)
     end_row = er + 1
   end
 
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, end_row, lines)
 end
 
 --- Get the info string on a block.

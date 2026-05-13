@@ -252,6 +252,16 @@ describe('gutenberg.heading', function()
       end)
     end)
 
+    it('skips the buffer write when nothing changed', function()
+      with_buffer({ '# foo' }, { 1, 2 }, function(ctx)
+        local h, node = heading.read(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        heading.set_level(h, 1)
+        heading.replace(node, { h }, ctx)
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
     it('preserves a block quote prefix when expanding to many', function()
       with_buffer({ '> # foo' }, { 1, 4 }, function(ctx)
         local h, node = heading.read(ctx)

@@ -12,6 +12,7 @@
 ---@field url string Destination URL.
 ---@field title string? Optional title, surrounding delimiters stripped.
 
+local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
 local M = {}
@@ -418,7 +419,7 @@ function M.replace(node, links, ctx)
     table.insert(parts, M.render(link))
   end
   local rendered = table.concat(parts, '')
-  vim.api.nvim_buf_set_text(ctx.bufnr, sr, sc, er, ec, { rendered })
+  buffer.set_text(ctx.bufnr, sr, sc, er, ec, { rendered })
 end
 
 --- Get the URL of an inline or autolink link. Returns nil for reference_*

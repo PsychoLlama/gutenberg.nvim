@@ -4,6 +4,7 @@
 ---@field checkbox string? Checkbox value (typically " " or "x"). nil = no checkbox.
 ---@field text string Content after the marker (and checkbox, if present).
 
+local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
 local M = {}
@@ -150,7 +151,7 @@ function M.replace(node, items, ctx)
   -- past EOF on the last item. Items are single-line, so write only the
   -- marker's row — anything below sr is a nested child or whitespace we
   -- shouldn't touch.
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, sr + 1, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, sr + 1, lines)
 end
 
 --- Read every direct sibling of the cursor's list item. Returns the entries
@@ -200,7 +201,7 @@ function M.replace_list(list_node, entries, ctx)
     lines[idx] = M.render(entry.item)
   end
 
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, end_row, lines)
 end
 
 --- The last row owned by `node` (inclusive). list_item / list ranges can
@@ -234,7 +235,7 @@ function M.indent(node, ctx)
   for i, line in ipairs(lines) do
     lines[i] = cfg.indent .. line
   end
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row + 1, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, end_row + 1, lines)
 end
 
 --- Shift the leading whitespace of `node`'s range left by
@@ -257,7 +258,7 @@ function M.dedent(node, ctx)
       lines[i] = line:sub(strip + 1)
     end
   end
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, end_row + 1, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, end_row + 1, lines)
 end
 
 --- Get the marker on an item.

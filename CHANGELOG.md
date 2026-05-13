@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `replace` (every module) and `list.indent` / `list.dedent` skip the
+  buffer write when the rendered output equals the existing range, so
+  no-op edits (e.g. promoting an h1 to h1) no longer add an undo entry.
+
 ### Added
 
 - `gutenberg.list.read_list` / `gutenberg.list.replace_list` expose the

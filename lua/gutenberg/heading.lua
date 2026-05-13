@@ -2,6 +2,7 @@
 ---@field level integer Heading depth, 1..6.
 ---@field text string Heading content after the `#` markers.
 
+local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
 local M = {}
@@ -168,7 +169,7 @@ function M.replace(node, headings, ctx)
 
   -- atx_heading ranges include the trailing newline (er = sr + 1), so the
   -- only buffer row owned by the heading is sr.
-  vim.api.nvim_buf_set_lines(ctx.bufnr, sr, sr + 1, false, lines)
+  buffer.set_lines(ctx.bufnr, sr, sr + 1, lines)
 end
 
 --- Get the level of a heading.
