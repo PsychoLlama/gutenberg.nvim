@@ -9,7 +9,23 @@ local context = require('gutenberg.context')
 
 local M = {}
 
---- Find the nearest `list_item` ancestor at the cursor, or nil.
+--- Walk from `node` toward the root looking for a `list_item`.
+---@param node TSNode?
+---@return TSNode?
+local function ancestor_list_item(node)
+  while node ~= nil do
+    if node:type() == 'list_item' then
+      return node
+    end
+    node = node:parent()
+  end
+  return nil
+end
+
+--- Find the `list_item` at the cursor, or nil. The cursor counts as "on"
+--- the item anywhere on its first row — including the leading whitespace
+--- before the marker, which treesitter resolves to an enclosing node
+--- (parent list_item, list, or document) rather than the item itself.
 ---@param ctx gutenberg.Context
 ---@return TSNode?
 local function find_list_item(ctx)
@@ -20,14 +36,26 @@ local function find_list_item(ctx)
   local tree = parser:parse()[1]
   local row = ctx.cursor[1] - 1
   local col = ctx.cursor[2]
-  local node = tree:root():descendant_for_range(row, col, row, col)
-  while node ~= nil do
-    if node:type() == 'list_item' then
-      return node
-    end
-    node = node:parent()
+
+  local item =
+    ancestor_list_item(tree:root():descendant_for_range(row, col, row, col))
+  if item ~= nil and item:range() == row then
+    return item
   end
-  return nil
+
+  -- Cursor is in the indent of a list_item (col < marker col). Treesitter
+  -- maps those columns to a parent node, not the item itself, so retry at
+  -- the first non-blank column on the cursor row.
+  local line = vim.api.nvim_buf_get_lines(ctx.bufnr, row, row + 1, false)[1]
+    or ''
+  local marker_col = line:find('%S')
+  if marker_col == nil or marker_col - 1 == col then
+    return item
+  end
+  local retry = ancestor_list_item(
+    tree:root():descendant_for_range(row, marker_col - 1, row, marker_col - 1)
+  )
+  return retry or item
 end
 
 --- Whether the cursor is on a list item. Gate calls to `read` with this.

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `gutenberg.list.is_list_item` / `read` / `dedent` now recognize the
+  cursor as being on a list item when it sits anywhere in the item's
+  leading indent, not just on the marker or its content.
 - `replace` (every module) and `list.indent` / `list.dedent` skip the
   buffer write when the rendered output equals the existing range, so
   no-op edits (e.g. promoting an h1 to h1) no longer add an undo entry.

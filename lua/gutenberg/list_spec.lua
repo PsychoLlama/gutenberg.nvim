@@ -98,6 +98,30 @@ describe('gutenberg.list', function()
       end)
     end)
 
+    it('returns true when the cursor is in the leading indent', function()
+      with_buffer({ '  - foo' }, { 1, 0 }, function(ctx)
+        assert.is_true(list.is_list_item(ctx))
+      end)
+    end)
+
+    it('finds the nested item when the cursor is in its indent', function()
+      with_buffer({ '- outer', '  - inner' }, { 2, 0 }, function(ctx)
+        local item = list.read(ctx)
+        assert.equal('inner', item.text)
+      end)
+    end)
+
+    it('dedents an item with the cursor in the leading indent', function()
+      with_buffer({ '- outer', '  - inner' }, { 2, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.dedent(node, ctx)
+        assert.same(
+          { '- outer', '- inner' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
     it('returns false on a heading', function()
       with_buffer({ '# heading' }, { 1, 2 }, function(ctx)
         assert.is_false(list.is_list_item(ctx))
