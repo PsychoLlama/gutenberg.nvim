@@ -15,6 +15,7 @@
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
+---@class gutenberg.link
 local M = {}
 
 ---@type table<string, true>

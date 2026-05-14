@@ -8,6 +8,7 @@
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
+---@class gutenberg.table
 local M = {}
 
 --- Find the nearest `pipe_table` ancestor at the cursor, or nil.

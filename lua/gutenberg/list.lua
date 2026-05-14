@@ -7,6 +7,7 @@
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
+---@class gutenberg.list
 local M = {}
 
 --- Walk from `node` toward the root looking for a `list_item`.

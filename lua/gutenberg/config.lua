@@ -44,6 +44,7 @@ local defaults = {
   },
 }
 
+---@class gutenberg.config
 local M = {}
 
 ---@type gutenberg.Config

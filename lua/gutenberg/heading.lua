@@ -5,6 +5,7 @@
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
+---@class gutenberg.heading
 local M = {}
 
 ---@param node TSNode

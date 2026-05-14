@@ -10,6 +10,7 @@
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
 
+---@class gutenberg.code_block
 local M = {}
 
 --- Find the nearest `fenced_code_block` ancestor at the cursor, or nil.
