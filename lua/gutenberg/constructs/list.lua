@@ -249,15 +249,92 @@ local function renumber_lines(lines)
   end
 end
 
---- Shift the targeted items `direction * ctx.count` indent units and
---- renumber every ordered sibling group in the affected lists, all in
---- one buffer update.
+--- The column where the content of `node`'s previous sibling starts —
+--- the indentation a nested child must reach (CommonMark) — or nil
+--- when there is no previous sibling to nest under.
+---@param node TSNode A `list_item` node.
+---@param bufnr integer
+---@return integer?
+local function nesting_col(node, bufnr)
+  local prev = node:prev_named_sibling()
+  if prev == nil or prev:type() ~= 'list_item' then
+    return nil
+  end
+
+  ---@type TSNode?
+  local marker
+  for child in prev:iter_children() do
+    if child:type():match('^list_marker') ~= nil then
+      marker = child
+      break
+    end
+  end
+  if marker == nil then
+    return nil
+  end
+
+  -- The marker node usually swallows the space before the content, but
+  -- extend past any that survives so wide separators still count.
+  local msr, _, _, mec = marker:range()
+  local line = vim.api.nvim_buf_get_lines(bufnr, msr, msr + 1, false)[1] or ''
+  return mec + #line:sub(mec + 1):match('^%s*')
+end
+
+--- The whitespace `indent` prepends to `node`'s lines: at least
+--- `ctx.count` indent units, widened to reach the previous sibling's
+--- content column so the item actually nests — a 2-space unit alone
+--- would leave `3.` a sibling of `2.`. Tab units already span a
+--- 4-column tab stop, wider than any common marker, and stay literal
+--- tabs.
+---@param node TSNode A `list_item` node.
+---@param ctx gutenberg.Context
+---@return string
+local function indent_prefix(node, ctx)
+  local unit = api.indent_unit(ctx.bufnr)
+  if unit:find('\t') ~= nil then
+    return unit:rep(ctx.count)
+  end
+  local _, sc = node:range()
+  local target = nesting_col(node, ctx.bufnr)
+  local needed = target ~= nil and target - sc or 0
+  return (' '):rep(math.max(#unit * ctx.count, needed))
+end
+
+--- How much leading whitespace `dedent` strips from `node`'s lines:
+--- the distance down to the `count`-th enclosing item's column,
+--- clamped at the outermost. Errors when the item isn't nested —
+--- there is no parent level to move out to.
+---@param node TSNode A `list_item` node.
+---@param count integer
+---@return integer
+local function dedent_strip(node, count)
+  ---@type integer[]
+  local cols = {}
+  local ancestor = node:parent()
+  while ancestor ~= nil do
+    if ancestor:type() == 'list_item' then
+      local _, sc = ancestor:range()
+      table.insert(cols, sc)
+    end
+    ancestor = ancestor:parent()
+  end
+  if #cols == 0 then
+    error('gutenberg: cannot dedent: item is already top-level', 0)
+  end
+
+  local _, sc = node:range()
+  return sc - cols[math.min(count, #cols)]
+end
+
+--- Shift the targeted items along the nesting axis — indent nests each
+--- under its previous sibling, dedent lifts each out to an enclosing
+--- item's level — and renumber every ordered sibling group in the
+--- affected lists, all in one buffer update.
 ---@param direction 1 | -1
 ---@param ctx? gutenberg.Context.Partial
 local function shift(direction, ctx)
   ctx = context.resolve(ctx)
   local nodes = shift_targets(ctx)
-  local unit = api.indent_unit(ctx.bufnr):rep(ctx.count)
 
   ---@type integer?, integer?
   local span_start, span_stop
@@ -274,16 +351,17 @@ local function shift(direction, ctx)
     vim.api.nvim_buf_get_lines(ctx.bufnr, span_start, span_stop + 1, false)
 
   for _, node in ipairs(nodes) do
+    local prefix = direction == 1 and indent_prefix(node, ctx) or ''
+    local strip = direction == -1 and dedent_strip(node, ctx.count) or 0
     local sr = node:range()
     for row = sr, content_end(node, ctx.bufnr) do
       local index = row - span_start + 1
       local line = lines[index]
       if direction == 1 then
-        lines[index] = unit .. line
+        lines[index] = prefix .. line
       elseif line:match('%S') ~= nil then
-        local strip = #unit
         local lead = line:sub(1, strip)
-        if #lead < strip or lead:match('^%s+$') == nil then
+        if #lead < strip or lead:match('^%s*$') == nil then
           error(
             'gutenberg: cannot dedent: line lacks '
               .. strip
@@ -300,9 +378,11 @@ local function shift(direction, ctx)
   buffer.set_lines(ctx.bufnr, span_start, span_stop + 1, lines)
 end
 
---- Indent the item at the cursor `ctx.count` units (see
---- `gutenberg.list.Config.indent`), nesting it under its previous
---- sibling. Nested children move with the item, and every ordered
+--- Indent the item at the cursor, nesting it under its previous
+--- sibling: the shift is at least `ctx.count` indent units (see
+--- `gutenberg.list.Config.indent`) and widens to reach the sibling's
+--- content column, so the item actually nests no matter how narrow
+--- the unit. Nested children move with the item, and every ordered
 --- sibling group in the affected list is renumbered — the item's old
 --- siblings close the gap it left, its new siblings count it in. One
 --- buffer update.
@@ -315,12 +395,14 @@ function M.indent(ctx)
   shift(1, ctx)
 end
 
---- Dedent the item at the cursor `ctx.count` units (see
---- `gutenberg.list.Config.indent`), moving it out to its parent's
---- level. Nested children move with the item, and every ordered
---- sibling group in the affected list is renumbered. One buffer
---- update. Errors when any affected line lacks the leading whitespace
---- to strip.
+--- Dedent the item at the cursor, lifting it out to its enclosing
+--- item's level — the `ctx.count`-th enclosing item's, clamped at the
+--- outermost. The strip is derived from the tree, not a fixed unit,
+--- so the item lands exactly on its parent's column. Nested children
+--- move with the item, and every ordered sibling group in the
+--- affected list is renumbered. One buffer update. Errors before
+--- writing when the item is already top-level, or when any affected
+--- line lacks the leading whitespace to strip.
 ---
 --- With `ctx.range`, dedents each selected item whose parent item
 --- isn't also selected (children travel with their parent). Errors if

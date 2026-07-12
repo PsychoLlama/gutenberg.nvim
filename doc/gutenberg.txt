@@ -571,14 +571,21 @@ toggle_ordered_list({ctx})               *gutenberg.list.toggle_ordered_list()*
 
 indent({ctx})                                         *gutenberg.list.indent()*
 dedent({ctx})                                         *gutenberg.list.dedent()*
-    Shift the item at the cursor `count` indent units right / left.
-    Nested children move with it, and every ordered sibling group in
-    the affected list is renumbered — the old siblings close the gap
-    the item left, its new siblings count it in, `.` vs `)` delimiters
-    survive. One buffer update. With a range, shifts each selected
-    item whose parent item isn't also selected (children travel with
-    their parent). `dedent` errors before writing when a line lacks
-    the whitespace to strip. For a plain text shift with no
+    Nest the item at the cursor under its previous sibling / lift it
+    out to its enclosing item's level. Both derive the shift from the
+    document, not just an indent width: `indent` moves the item at
+    least `count` units (|gutenberg.api.list.indent_unit()|) and always
+    far enough to reach the sibling's content column, so `3.` nests
+    under `2.` even when the unit is narrower than the marker; `dedent`
+    strips down to the `count`-th enclosing item's column, clamped at
+    the outermost. Nested children move with the item, and every
+    ordered sibling group in the affected list is renumbered — the old
+    siblings close the gap the item left, its new siblings count it
+    in, `.` vs `)` delimiters survive. One buffer update. With a
+    range, shifts each selected item whose parent item isn't also
+    selected (children travel with their parent). `dedent` errors
+    before writing when the item is already top-level or a line lacks
+    the whitespace to strip. For a plain one-unit text shift with no
     renumbering, use the |gutenberg.api.list.indent()| primitive.
 
 Primitives — `require('gutenberg.api').list`:            *gutenberg.api.list*
@@ -639,10 +646,12 @@ renumber({items})                               *gutenberg.api.list.renumber()*
     alone and don't consume a number.
 
 indent({node}, {ctx})                             *gutenberg.api.list.indent()*
-    Shift the leading whitespace of {node}'s range right by one indent
-    unit (see |gutenberg.api.list.indent_unit()|). Nested children
-    move with the parent. Single buffer update. No renumbering — the
-    root-level |gutenberg.list.indent()| adds that.
+    Shift the leading whitespace of {node}'s range right by exactly one
+    indent unit (see |gutenberg.api.list.indent_unit()|). A plain text
+    shift: no renumbering, and a unit narrower than the previous
+    sibling's marker leaves the item a sibling instead of nesting it —
+    the root-level |gutenberg.list.indent()| adds both. Nested children
+    move with the parent. Single buffer update.
 
 dedent({node}, {ctx})                             *gutenberg.api.list.dedent()*
     Shift the leading whitespace of {node}'s range left by one indent
@@ -1108,9 +1117,11 @@ CONFIG                                                      *gutenberg.config*
                                                        *gutenberg.list.Config*
 `list.marker`             Default bullet marker for new items.
 `list.indent`             Whitespace unit for |gutenberg.api.list.indent()| /
-                        |gutenberg.api.list.dedent()|. When nil (default),
-                        derived per call from the target buffer's
-                        'expandtab' and 'tabstop'.
+                        |gutenberg.api.list.dedent()|, and the minimum
+                        shift for |gutenberg.list.indent()| (which
+                        widens as needed to actually nest). When nil
+                        (default), derived per call from the target
+                        buffer's 'expandtab' and 'tabstop'.
 `list.default_checked`    State of a newly-inserted checkbox, used by
                         |gutenberg.list.toggle_checkbox()| when
                         promoting a bare item.

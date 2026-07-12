@@ -222,10 +222,12 @@ function M.indent_unit(bufnr)
   return string.rep(' ', vim.bo[bufnr].tabstop)
 end
 
---- Shift the leading whitespace of `node`'s range right by one indent
---- unit (see `gutenberg.list.Config.indent`). Use to nest a list_item
---- under its previous sibling. Single buffer update; nested children
---- move with the parent.
+--- Shift the leading whitespace of `node`'s range right by exactly one
+--- indent unit (see `gutenberg.list.Config.indent`). A plain text
+--- shift: a unit narrower than the previous sibling's marker leaves
+--- the item a sibling instead of nesting it — the root-level
+--- `gutenberg.list.indent` widens the shift for you. Single buffer
+--- update; nested children move with the parent.
 ---@param node TSNode A `list_item` node.
 ---@param ctx? gutenberg.Context.Partial
 function M.indent(node, ctx)

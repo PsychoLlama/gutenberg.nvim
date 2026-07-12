@@ -22,9 +22,11 @@ Initial release.
   inner-cell textobject (`table.select_cell`).
 - Table structure: insert/delete/move rows and columns, and a
   `table.actions()` picker over them.
-- Smart list indent/dedent that renumbers ordered lists on both sides
-  of the move; list splice primitives (`items`, `insert`, `append`,
-  `prepend`, `renumber`).
+- Smart list indent/dedent that nests by document structure — the
+  shift always reaches the previous sibling's content column, so `3.`
+  nests under `2.` even with a narrow 'tabstop' — and renumbers
+  ordered lists on both sides of the move; list splice primitives
+  (`items`, `insert`, `append`, `prepend`, `renumber`).
 - `code_block.insert` / `code_block.wrap` and `link.wrap` /
   `link.remove`.
 

@@ -321,6 +321,19 @@ describe('gutenberg.list', function()
       end)
     end)
 
+    it('widens the shift so ordered items actually nest', function()
+      -- A 2-space unit alone leaves `3.` a sibling of `2.` — CommonMark
+      -- needs the sibling's content column (3) — and nothing renumbers.
+      local lines = { '1. first', '2. second', '3. third', '4. fourth' }
+      with_buffer(lines, { 3, 0 }, function(ctx)
+        list.indent(ctx)
+        assert.same(
+          { '1. first', '2. second', '   1. third', '3. fourth' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
     it('uses a tab per unit when noexpandtab', function()
       local lines = { '- a', '- b' }
       with_buffer(lines, { 2, 0 }, function(ctx)
@@ -398,13 +411,37 @@ describe('gutenberg.list', function()
       end, { expandtab = false })
     end)
 
-    it('errors before writing when whitespace is short', function()
+    it('strips the full nesting distance, not one unit', function()
+      -- Nested at 3 columns with a 2-space unit: a unit strip would
+      -- leave a stray column instead of landing on the parent's level.
+      local lines = { '1. one', '   1. two', '2. three' }
+      with_buffer(lines, { 2, 3 }, function(ctx)
+        list.dedent(ctx)
+        assert.same(
+          { '1. one', '2. two', '3. three' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('clamps a count at the outermost level', function()
+      local lines = { '- a', '  - b', '    - c' }
+      with_buffer(lines, { 3, 4 }, function(ctx)
+        list.dedent({ bufnr = ctx.bufnr, cursor = ctx.cursor, count = 5 })
+        assert.same(
+          { '- a', '  - b', '- c' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('errors before writing on a top-level item', function()
       local lines = { '- a', '  - b' }
       with_buffer(lines, { 1, 0 }, function(ctx)
         local tick = vim.b[ctx.bufnr].changedtick
         assert.error_matches(function()
           list.dedent(ctx)
-        end, 'cannot dedent: line lacks 2 leading whitespace')
+        end, 'cannot dedent: item is already top%-level')
         assert.equal(tick, vim.b[ctx.bufnr].changedtick)
       end)
     end)

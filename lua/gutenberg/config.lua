@@ -1,6 +1,6 @@
 ---@class gutenberg.list.Config
 ---@field marker string Default bullet marker for new items.
----@field indent? string Whitespace inserted/removed by `indent` / `dedent`. When nil, derived per call from the target buffer's `&expandtab` and `&tabstop`.
+---@field indent? string Whitespace unit for the `api.list` indent/dedent primitives, and the minimum shift for `gutenberg.list.indent` (which widens as needed to actually nest). When nil, derived per call from the target buffer's `&expandtab` and `&tabstop`.
 ---@field default_checked boolean State of a newly-inserted checkbox. Callers driving a "toggle" keymap should read this when promoting an item to a checkbox so the inserted state respects user preference.
 
 ---@class gutenberg.heading.Config
