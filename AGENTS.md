@@ -4,6 +4,13 @@
 - Annotate all functions, fields, and module APIs with LuaCATS types.
 - Code comments explain _why_, not _what_. Skip them when the code is self-evident.
 
+## Architecture
+
+- One module per markdown construct, all with the same surface: `is_*` probes the cursor, `read` decodes the node into a plain value type, `create`/`render` build text from a value, `replace` writes it back in one update, and getter/setter pairs mutate the value in memory.
+- Shared treesitter plumbing lives in `gutenberg.ts`: cursor→node resolution, range clamps, container prefixes, traversal. Feature modules must not call `vim.treesitter.get_parser` or `descendant_for_range` directly — extend `gutenberg.ts` when it falls short.
+- All buffer writes go through `gutenberg.buffer`, which skips no-op writes so they don't pollute undo history.
+- Specs live beside their module (`*_spec.lua`) and share `gutenberg.spec_utils` for scratch buffers.
+
 ## API Design
 
 - Lean powerful, not simple for its own sake. Favor composable primitives over convenience methods.
