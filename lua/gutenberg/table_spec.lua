@@ -1,18 +1,6 @@
 local tbl = require('gutenberg.table')
 
----@param lines string[]
----@param cursor [integer, integer]
----@param fn fun(ctx: gutenberg.Context)
-local function with_buffer(lines, cursor, fn)
-  local bufnr = vim.api.nvim_create_buf(false, true)
-  vim.bo[bufnr].filetype = 'markdown'
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  local ok, err = pcall(fn, { bufnr = bufnr, cursor = cursor })
-  vim.api.nvim_buf_delete(bufnr, { force = true })
-  if not ok then
-    error(err)
-  end
-end
+local with_buffer = require('gutenberg.spec_utils').with_buffer
 
 describe('gutenberg.table', function()
   describe('render', function()
