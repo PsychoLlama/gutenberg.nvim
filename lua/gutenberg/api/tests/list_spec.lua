@@ -501,6 +501,183 @@ describe('gutenberg.api.list', function()
     end)
   end)
 
+  describe('items', function()
+    it('returns every item in document order, any depth', function()
+      local lines = {
+        '- one',
+        '  - nested',
+        '- two',
+        '',
+        'paragraph',
+        '',
+        '1. other list',
+      }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        local entries = list.items(ctx)
+        local texts = {}
+        for _, entry in ipairs(entries) do
+          table.insert(texts, entry.item.text)
+        end
+        assert.same({ 'one', 'nested', 'two', 'other list' }, texts)
+      end)
+    end)
+
+    it('returns an empty table with no lists', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.same({}, list.items(ctx))
+      end)
+    end)
+  end)
+
+  describe('prepend', function()
+    it('inserts rendered items above the node', function()
+      with_buffer({ '- one', '- two' }, { 2, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.prepend(node, { list.create({ text = 'new' }) }, ctx)
+        assert.same(
+          { '- one', '- new', '- two' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('is a no-op with no items', function()
+      with_buffer({ '- one' }, { 1, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.prepend(node, {}, ctx)
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+  end)
+
+  describe('append', function()
+    it('inserts rendered items below the node', function()
+      with_buffer({ '- one', '- two' }, { 1, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.append(node, { list.create({ text = 'new' }) }, ctx)
+        assert.same(
+          { '- one', '- new', '- two' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('lands past nested children', function()
+      with_buffer({ '- one', '  - nested', '- two' }, { 1, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        list.append(node, { list.create({ text = 'new' }) }, ctx)
+        assert.same(
+          { '- one', '  - nested', '- new', '- two' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('inserts multiple items in one update', function()
+      with_buffer({ '- one' }, { 1, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.append(node, {
+          list.create({ text = 'a' }),
+          list.create({ text = 'b' }),
+        }, ctx)
+        assert.same(
+          { '- one', '- a', '- b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+        assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
+    it('is a no-op with no items', function()
+      with_buffer({ '- one' }, { 1, 0 }, function(ctx)
+        local _, node = list.read(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.append(node, {}, ctx)
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+  end)
+
+  describe('insert', function()
+    it('inserts before the item at index', function()
+      with_buffer({ '- one', '- two' }, { 1, 0 }, function(ctx)
+        local _, list_node = list.read_list(ctx)
+        list.insert(list_node, 2, { list.create({ text = 'new' }) }, ctx)
+        assert.same(
+          { '- one', '- new', '- two' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('inserts at the head with index 1', function()
+      with_buffer({ '- one' }, { 1, 0 }, function(ctx)
+        local _, list_node = list.read_list(ctx)
+        list.insert(list_node, 1, { list.create({ text = 'new' }) }, ctx)
+        assert.same(
+          { '- new', '- one' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('appends past the last item when index exceeds the list', function()
+      with_buffer({ '- one', '  - nested' }, { 1, 0 }, function(ctx)
+        local _, list_node = list.read_list(ctx)
+        list.insert(list_node, 99, { list.create({ text = 'new' }) }, ctx)
+        assert.same(
+          { '- one', '  - nested', '- new' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('errors on a non-positive index', function()
+      with_buffer({ '- one' }, { 1, 0 }, function(ctx)
+        local _, list_node = list.read_list(ctx)
+        assert.error_matches(function()
+          list.insert(list_node, 0, { list.create({ text = 'new' }) }, ctx)
+        end, 'index must be a positive integer')
+      end)
+    end)
+  end)
+
+  describe('renumber', function()
+    it('renumbers ordered markers from 1', function()
+      local items = {
+        list.create({ marker = '4.' }),
+        list.create({ marker = '9.' }),
+      }
+      list.renumber(items)
+      assert.equal('1.', items[1].marker)
+      assert.equal('2.', items[2].marker)
+    end)
+
+    it('preserves the paren delimiter', function()
+      local items = {
+        list.create({ marker = '7)' }),
+        list.create({ marker = '2.' }),
+      }
+      list.renumber(items)
+      assert.equal('1)', items[1].marker)
+      assert.equal('2.', items[2].marker)
+    end)
+
+    it('skips unordered items without consuming a number', function()
+      local items = {
+        list.create({ marker = '5.' }),
+        list.create({ marker = '-' }),
+        list.create({ marker = '5.' }),
+      }
+      list.renumber(items)
+      assert.equal('1.', items[1].marker)
+      assert.equal('-', items[2].marker)
+      assert.equal('2.', items[3].marker)
+    end)
+  end)
+
   describe('indent', function()
     it('shifts a leaf item right by config.list.indent', function()
       with_buffer({ '- foo', '- bar' }, { 1, 2 }, function(ctx)

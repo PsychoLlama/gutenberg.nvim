@@ -79,11 +79,14 @@ end
 function M.toggle_ordered_list(ctx)
   return M.update_list(function(entries)
     local ordered = not api.is_ordered(entries[1].item)
-    for i, entry in ipairs(entries) do
+    ---@type gutenberg.list.Item[]
+    local items = {}
+    for _, entry in ipairs(entries) do
       api.set_ordered(entry.item, ordered)
-      if ordered then
-        api.set_marker(entry.item, i .. '.')
-      end
+      table.insert(items, entry.item)
+    end
+    if ordered then
+      api.renumber(items)
     end
   end, ctx)
 end

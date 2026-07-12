@@ -267,6 +267,117 @@ function M.dedent(node, ctx)
   buffer.set_lines(ctx.bufnr, sr, end_row + 1, lines)
 end
 
+--- Every list item in the buffer (any list, any depth), in document
+--- order.
+---@param ctx? gutenberg.Context.Partial
+---@return { item: gutenberg.list.Item, node: TSNode }[]
+function M.items(ctx)
+  ctx = context.resolve(ctx)
+  ---@type { item: gutenberg.list.Item, node: TSNode }[]
+  local results = {}
+  for _, node in ipairs(ts.collect(ctx.bufnr, 'list_item')) do
+    table.insert(
+      results,
+      { item = decode_item(node, ctx.bufnr), node = node }
+    )
+  end
+  return results
+end
+
+--- Render `items` and splice them into the buffer above `row` in a
+--- single insertion. An empty `items` list is a no-op.
+---@param bufnr integer
+---@param row integer 0-indexed row to insert before.
+---@param items gutenberg.list.Item[]
+local function splice(bufnr, row, items)
+  ---@type string[]
+  local lines = {}
+  for _, item in ipairs(items) do
+    table.insert(lines, M.render(item))
+  end
+  if #lines == 0 then
+    return
+  end
+  buffer.set_lines(bufnr, row, row, lines)
+end
+
+--- Insert the rendered `items` directly above `node` (a `list_item`)
+--- as new siblings. Single buffer update; empty `items` is a no-op.
+---@param node TSNode A `list_item` node.
+---@param items gutenberg.list.Item[]
+---@param ctx? gutenberg.Context.Partial
+function M.prepend(node, items, ctx)
+  ctx = context.resolve(ctx)
+  local sr = node:range()
+  splice(ctx.bufnr, sr, items)
+end
+
+--- Insert the rendered `items` directly below `node` (a `list_item`)
+--- as new siblings, landing past the item's nested children. Single
+--- buffer update; empty `items` is a no-op.
+---@param node TSNode A `list_item` node.
+---@param items gutenberg.list.Item[]
+---@param ctx? gutenberg.Context.Partial
+function M.append(node, items, ctx)
+  ctx = context.resolve(ctx)
+  local _, end_row = content_rows(node, ctx.bufnr)
+  splice(ctx.bufnr, end_row + 1, items)
+end
+
+--- Insert the rendered `items` into `list_node` so the first lands at
+--- position `index` among the list's direct items. An `index` past the
+--- last item appends to the end of the list (past nested children).
+--- Errors when `index` is not a positive integer. Single buffer
+--- update; empty `items` is a no-op.
+---@param list_node TSNode A `list` node (see `read_list`).
+---@param index integer
+---@param items gutenberg.list.Item[]
+---@param ctx? gutenberg.Context.Partial
+function M.insert(list_node, index, items, ctx)
+  ctx = context.resolve(ctx)
+  if index < 1 or index ~= math.floor(index) then
+    error(
+      'gutenberg: index must be a positive integer, got ' .. tostring(index),
+      0
+    )
+  end
+
+  ---@type TSNode[]
+  local children = {}
+  for child in list_node:iter_children() do
+    if child:type() == 'list_item' then
+      table.insert(children, child)
+    end
+  end
+
+  if index <= #children then
+    local sr = children[index]:range()
+    splice(ctx.bufnr, sr, items)
+    return
+  end
+
+  local last = children[#children]
+  if last == nil then
+    error('gutenberg: list has no items to insert around', 0)
+  end
+  local _, end_row = content_rows(last, ctx.bufnr)
+  splice(ctx.bufnr, end_row + 1, items)
+end
+
+--- Renumber ordered markers in `items` sequentially from 1, in place.
+--- Each ordered marker keeps its delimiter (`.` vs `)`); unordered
+--- items are left alone and don't consume a number.
+---@param items gutenberg.list.Item[]
+function M.renumber(items)
+  local n = 0
+  for _, item in ipairs(items) do
+    if M.is_ordered(item) then
+      n = n + 1
+      item.marker = n .. item.marker:sub(-1)
+    end
+  end
+end
+
 --- Get the marker on an item.
 ---@param item gutenberg.list.Item
 ---@return string
