@@ -30,16 +30,14 @@ level 6, then bring it back up to level 2.
 
 ## Lesson 2: Heading Navigation
 
-Three motions, none of which change the document:
+Two motions, neither of which changes the document:
 
-| Keybinding | What it does               |
-| ---------- | -------------------------- |
-| `]h`       | Jump to next heading       |
-| `[h`       | Jump to previous heading   |
-| `gO`       | Pick a heading from a list |
+| Keybinding | What it does             |
+| ---------- | ------------------------ |
+| `]h`       | Jump to next heading     |
+| `[h`       | Jump to previous heading |
 
-**Practice:** press `]h` and `[h` a few times to hop between lessons,
-then press `gO` and jump straight to "Lesson 5: Ordered Lists".
+**Practice:** press `]h` and `[h` a few times to hop between lessons.
 
 ---
 

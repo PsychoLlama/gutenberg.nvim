@@ -53,25 +53,6 @@ local function apply_keymaps(bufnr)
     jump_to(node)
   end, 'previous heading')
 
-  map('gO', function()
-    local entries = gutenberg.heading.list()
-    if #entries == 0 then
-      return
-    end
-    vim.ui.select(entries, {
-      prompt = 'Headings',
-      format_item = function(entry)
-        return string.rep('#', entry.heading.level)
-          .. ' '
-          .. entry.heading.text
-      end,
-    }, function(choice)
-      if choice then
-        jump_to(choice.node)
-      end
-    end)
-  end, 'heading picker')
-
   map('<leader>mp', gutenberg.heading.promote, 'promote heading')
   map('<leader>md', gutenberg.heading.demote, 'demote heading')
 

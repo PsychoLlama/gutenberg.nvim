@@ -153,7 +153,6 @@ MDX buffers and surfaces failures as notifications:
   Navigation ~
     ]h            jump to next heading
     [h            jump to previous heading
-    gO            heading picker (|vim.ui.select()|)
 
   Codemods ~
     <leader>mp    promote heading        <leader>md    demote heading
@@ -199,21 +198,6 @@ MDX buffers and surfaces failures as notifications:
         local _, node = gutenberg.heading.find_prev()
         jump_to(node)
       end, 'previous heading')
-
-      map('gO', function()
-        vim.ui.select(gutenberg.heading.list(), {
-          prompt = 'Headings',
-          format_item = function(entry)
-            return string.rep('#', entry.heading.level)
-              .. ' '
-              .. entry.heading.text
-          end,
-        }, function(choice)
-          if choice then
-            jump_to(choice.node)
-          end
-        end)
-      end, 'heading picker')
 
       -- Headings
       map('<leader>mp', gutenberg.heading.promote, 'promote heading')
