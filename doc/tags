@@ -69,6 +69,11 @@ gutenberg.heading.Config	gutenberg.txt	/*gutenberg.heading.Config*
 gutenberg.heading.demote()	gutenberg.txt	/*gutenberg.heading.demote()*
 gutenberg.heading.promote()	gutenberg.txt	/*gutenberg.heading.promote()*
 gutenberg.heading.update()	gutenberg.txt	/*gutenberg.heading.update()*
+gutenberg.keymap	gutenberg.txt	/*gutenberg.keymap*
+gutenberg.keymap.notify()	gutenberg.txt	/*gutenberg.keymap.notify()*
+gutenberg.keymap.operator()	gutenberg.txt	/*gutenberg.keymap.operator()*
+gutenberg.keymap.repeatable()	gutenberg.txt	/*gutenberg.keymap.repeatable()*
+gutenberg.keymap.visual()	gutenberg.txt	/*gutenberg.keymap.visual()*
 gutenberg.link	gutenberg.txt	/*gutenberg.link*
 gutenberg.link.Config	gutenberg.txt	/*gutenberg.link.Config*
 gutenberg.link.Kind	gutenberg.txt	/*gutenberg.link.Kind*

@@ -4,6 +4,7 @@
 ---@field config gutenberg.config
 ---@field health gutenberg.health
 ---@field heading gutenberg.heading
+---@field keymap gutenberg.keymap
 ---@field link gutenberg.link
 ---@field list gutenberg.list
 ---@field table gutenberg.table

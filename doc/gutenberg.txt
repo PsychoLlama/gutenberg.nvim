@@ -274,6 +274,47 @@ promoting a heading or dedenting a list item.
   })
 <
 ==============================================================================
+KEYMAP HELPERS                                                *gutenberg.keymap*
+
+Adapters that turn sugar verbs into well-behaved keymaps: dot-repeat,
+counts, operators, and visual mode. gutenberg still ships no keymaps —
+your mappings consume these. This module is a sanctioned UI edge: every
+adapter runs its callback under |pcall()| and surfaces failures through
+|vim.notify()| at WARN.
+
+notify({fn})                                        *gutenberg.keymap.notify()*
+    Run {fn}, notifying on error instead of throwing. The escape hatch
+    for one-off mappings (motions, pickers) that need no other
+    adapter.
+
+repeatable({fn})                                *gutenberg.keymap.repeatable()*
+    Wrap a sugar verb as a dot-repeatable, count-aware normal-mode
+    edit. Returns a function for an `expr = true` mapping: >lua
+      vim.keymap.set('n', '<leader>mx', keymap.repeatable(function(ctx)
+        require('gutenberg').list.toggle_checkbox(ctx)
+      end), { expr = true })
+<
+    {fn} receives `{ count = vim.v.count1 }`. The count is read inside
+    the |operatorfunc| trampoline, so `3<lhs>`, |.|, and `5.` all
+    deliver the right count. Known caveat: the `g@l` trampoline no-ops
+    on empty lines.
+
+operator({fn})                                    *gutenberg.keymap.operator()*
+    Wrap a sugar verb as an operator: the mapping waits for a motion
+    or textobject and hands {fn} the covered range as
+    `{ range = ... }` (an inclusive char or line range). Returns a
+    function for an `expr = true` mapping. Dot-repeat comes free with
+    |g@|. Blockwise-forced motions notify and do nothing.
+
+visual({fn})                                        *gutenberg.keymap.visual()*
+    Wrap a sugar verb as a visual-mode edit. Reads the LIVE selection
+    (|getpos()| on `'v'` and `'.'` — the `'<` / `'>` marks still
+    describe the previous selection while visual mode is active),
+    normalizes backwards selections, leaves visual mode, then calls
+    {fn} with `{ range = ... }`. Blockwise selections notify and do
+    nothing.
+
+==============================================================================
 ERRORS                                                      *gutenberg-errors*
 
 gutenberg never calls |vim.notify()|. Functions throw, and the binding
