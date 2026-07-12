@@ -36,6 +36,9 @@ Initial release.
   sibling next to the cursor — a list item (cloning the marker and any
   checkbox, renumbering ordered runs) or a table row — landing the
   cursor on it for immediate text entry.
+- `list.remove_checkbox`: strip the checkbox off a task item (or every
+  item in a range), turning it back into a plain list item. Bound to
+  `<leader>mX` in the recommended keymaps.
 - `code_block.insert` / `code_block.wrap` and `link.wrap` /
   `link.remove`.
 - Recommended keymaps: `<leader>mo` / `<leader>mO` append/prepend a

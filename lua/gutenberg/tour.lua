@@ -88,6 +88,7 @@ local function apply_keymaps(bufnr)
 
   -- Lists
   edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
+  edit('<leader>mX', gutenberg.list.remove_checkbox, 'remove checkbox')
 
   -- Append / prepend a sibling — a list item or a table row, whichever
   -- is under the cursor — then drop into insert mode on it. Lists land

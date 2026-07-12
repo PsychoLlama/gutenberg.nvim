@@ -240,6 +240,7 @@ counts, visual mode, and `.`-repeat:
     <leader>m<    promote heading / dedent list item / move column left
     <leader>m>    demote heading / indent list item / move column right
     <leader>mx    toggle checkbox (visual: bulk check/uncheck)
+    <leader>mX    remove checkbox (visual: over the selection)
     <leader>ma    toggle list ordered / cycle column alignment
 
   Insert siblings (n) ~
@@ -334,6 +335,7 @@ already edit them.
 
       -- Lists
       edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
+      edit('<leader>mX', gutenberg.list.remove_checkbox, 'remove checkbox')
 
       -- Append / prepend a sibling — a list item or a table row,
       -- whichever is under the cursor — then drop into insert mode on
@@ -602,6 +604,13 @@ toggle_checkbox({ctx})                       *gutenberg.list.toggle_checkbox()*
     Counts are ignored: "toggle 3 checkboxes" has no coherent meaning,
     so bulk toggles come from ranges (visual mode at the keymap edge).
 
+remove_checkbox({ctx})                       *gutenberg.list.remove_checkbox()*
+    Strip the checkbox from the item at the cursor, turning a task item
+    back into a plain list item; items without one are left untouched.
+    With a range, strips every targeted item in one buffer update.
+    Errors when the cursor isn't on a list item (or the range holds
+    none).
+
 toggle_ordered({ctx})                         *gutenberg.list.toggle_ordered()*
     Switch the item at the cursor between ordered and unordered. With
     a count or range, switches every target in the direction of the
@@ -638,10 +647,16 @@ dedent({ctx})                                         *gutenberg.list.dedent()*
     siblings close the gap the item left, its new siblings count it
     in, `.` vs `)` delimiters survive. One buffer update. With a
     range, shifts each selected item whose parent item isn't also
-    selected (children travel with their parent). `dedent` errors
-    before writing when the item is already top-level or a line lacks
-    the whitespace to strip. For a plain one-unit text shift with no
-    renumbering, use the |gutenberg.api.list.indent()| primitive.
+    selected (children travel with their parent).
+
+    Both refuse before writing when the move is undefined, so a run of
+    indents is reversed exactly by the same run of dedents: `indent`
+    when the item has no previous sibling to nest under (nesting is
+    defined only relative to one — otherwise it would pile on
+    whitespace until the item stopped parsing as a list), `dedent` when
+    the item is already top-level or a line lacks the whitespace to
+    strip. For a plain one-unit text shift with no renumbering or
+    guard, use the |gutenberg.api.list.indent()| primitive.
 
 Primitives — `require('gutenberg.api').list`:            *gutenberg.api.list*
 

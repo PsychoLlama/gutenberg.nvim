@@ -336,6 +336,24 @@ local function shift(direction, ctx)
   ctx = context.resolve(ctx)
   local nodes = shift_targets(ctx)
 
+  -- Nesting is defined only relative to a previous sibling. An item
+  -- with none can't become anyone's child; indenting it anyway just
+  -- piles on whitespace that stops parsing as a list once it reaches
+  -- four columns (an indented code block), stranding it. Refuse before
+  -- writing, mirroring dedent's top-level guard, so indent/dedent stay
+  -- reversible and derive purely from the current tree.
+  if direction == 1 then
+    for _, node in ipairs(nodes) do
+      local prev = node:prev_named_sibling()
+      if prev == nil or prev:type() ~= 'list_item' then
+        error(
+          'gutenberg: cannot indent: item has no previous sibling to nest under',
+          0
+        )
+      end
+    end
+  end
+
   ---@type integer?, integer?
   local span_start, span_stop
   for _, node in ipairs(nodes) do
@@ -451,6 +469,34 @@ function M.toggle_checkbox(ctx)
   local written = {}
   for _, entry in ipairs(entries) do
     api.set_checked(entry.item, not all_checked)
+    table.insert(written, entry.item)
+  end
+  write_targets(ctx.bufnr, entries)
+  return written
+end
+
+--- Remove the checkbox from the item at the cursor, turning a task
+--- item back into a plain list item. Items without a checkbox are left
+--- untouched.
+---
+--- With `ctx.range`, strips the checkbox from every targeted item in
+--- one buffer update. Errors if the cursor isn't on a list item (or the
+--- range holds none).
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.list.Item[] written
+function M.remove_checkbox(ctx)
+  ctx = context.resolve(ctx)
+  if ctx.range == nil then
+    return M.update(function(item)
+      api.set_checkbox(item, nil)
+    end, ctx)
+  end
+
+  local entries = targets(ctx)
+  ---@type gutenberg.list.Item[]
+  local written = {}
+  for _, entry in ipairs(entries) do
+    api.set_checkbox(entry.item, nil)
     table.insert(written, entry.item)
   end
   write_targets(ctx.bufnr, entries)

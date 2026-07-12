@@ -195,6 +195,82 @@ describe('gutenberg.list', function()
     end)
   end)
 
+  describe('remove_checkbox', function()
+    it('strips the checkbox from the item at the cursor', function()
+      with_buffer({ '- [x] foo' }, { 1, 0 }, function(ctx)
+        list.remove_checkbox(ctx)
+        assert.same(
+          { '- foo' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('strips an unchecked checkbox too', function()
+      with_buffer({ '- [ ] foo' }, { 1, 0 }, function(ctx)
+        list.remove_checkbox(ctx)
+        assert.same(
+          { '- foo' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('leaves a plain item untouched', function()
+      with_buffer({ '- foo' }, { 1, 0 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.remove_checkbox(ctx)
+        assert.same(
+          { '- foo' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
+    it('preserves the ordered marker', function()
+      with_buffer({ '1. [x] foo' }, { 1, 0 }, function(ctx)
+        list.remove_checkbox(ctx)
+        assert.same(
+          { '1. foo' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('strips every item in a range in one update', function()
+      local lines = { '- [x] a', '- b', '- [ ] c' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.remove_checkbox({
+          bufnr = ctx.bufnr,
+          range = { mode = 'line', start = { 1, 0 }, stop = { 3, 0 } },
+        })
+        assert.same(
+          { '- a', '- b', '- c' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+        assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
+    it('returns the written items', function()
+      with_buffer({ '- [x] foo' }, { 1, 0 }, function(ctx)
+        local written = list.remove_checkbox(ctx)
+        assert.equal(1, #written)
+        assert.is_nil(written[1].checkbox)
+      end)
+    end)
+
+    it('errors when the cursor is not on a list item', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          list.remove_checkbox(ctx)
+        end, 'cursor is not on a list item')
+      end)
+    end)
+  end)
+
   describe('toggle_ordered', function()
     it('switches a bullet to an ordered marker', function()
       with_buffer({ '- foo', '- bar' }, { 2, 0 }, function(ctx)
@@ -299,14 +375,23 @@ describe('gutenberg.list', function()
       end)
     end)
 
-    it('indents the first sibling with no new group', function()
+    it('refuses to indent an item with no previous sibling', function()
       local lines = { '- a', '- b' }
       with_buffer(lines, { 1, 0 }, function(ctx)
-        list.indent(ctx)
-        assert.same(
-          { '  - a', '- b' },
-          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
-        )
+        local tick = vim.b[ctx.bufnr].changedtick
+        assert.error_matches(function()
+          list.indent(ctx)
+        end, 'no previous sibling to nest under')
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
+    it('refuses to indent an only child further', function()
+      local lines = { '- a', '  - a1' }
+      with_buffer(lines, { 2, 4 }, function(ctx)
+        assert.error_matches(function()
+          list.indent(ctx)
+        end, 'no previous sibling to nest under')
       end)
     end)
 
@@ -355,14 +440,16 @@ describe('gutenberg.list', function()
     end)
 
     it('range: skips items whose parent item is also selected', function()
-      local lines = { '- a', '  - a1', '- b', '- c' }
+      -- Selecting b and its child b1 indents only b (b1 travels with
+      -- its parent); b nests under its previous sibling a.
+      local lines = { '- a', '- b', '  - b1', '- c' }
       with_buffer(lines, { 1, 0 }, function(ctx)
         list.indent({
           bufnr = ctx.bufnr,
-          range = { mode = 'line', start = { 1, 0 }, stop = { 2, 0 } },
+          range = { mode = 'line', start = { 2, 0 }, stop = { 3, 0 } },
         })
         assert.same(
-          { '  - a', '    - a1', '- b', '- c' },
+          { '- a', '  - b', '    - b1', '- c' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)

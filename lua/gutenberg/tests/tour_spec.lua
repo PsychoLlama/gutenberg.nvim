@@ -81,7 +81,7 @@ describe('gutenberg.tour', function()
 
     -- Edits bind normal + visual.
     local leader = vim.g.mapleader or '\\'
-    for _, suffix in ipairs({ 'm<', 'm>', 'mx', 'ma', 'ml', 'mc' }) do
+    for _, suffix in ipairs({ 'm<', 'm>', 'mx', 'mX', 'ma', 'ml', 'mc' }) do
       assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
       assert.is_true(maps('x')[leader .. suffix] == true, 'x ' .. suffix)
     end

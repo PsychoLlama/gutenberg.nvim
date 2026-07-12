@@ -39,7 +39,9 @@ step.
 `<leader>mx` toggles the checkbox on a list item; items without one
 gain a checkbox first. Toggle "oranges", then `.` on "pears" — and
 select the whole list with `V` and press `<leader>mx`: a mixed
-selection checks everything, a fully-checked one unchecks:
+selection checks everything, a fully-checked one unchecks. `<leader>mX`
+strips the checkbox off entirely, back to a plain bullet — over a
+visual selection too:
 
 - [x] oranges
 - [ ] apples
@@ -68,9 +70,11 @@ ordered lists on both sides of the move. Indent "third" and watch
 3. third
 4. fourth
 
-Nested children move with their parent, and a dedent that would mangle
-the list (an item already flush left) raises an error before touching
-the buffer.
+Nested children move with their parent, and the pair stays reversible:
+each raises an error before touching the buffer when the move is
+undefined — indenting an item with no sibling above it to nest under,
+or dedenting one already flush left — so a run of indents undoes with
+the same run of dedents.
 
 ---
 
