@@ -2,7 +2,7 @@
 --- spirit of `:Tutor`. Opens the shipped tour document in a listed
 --- scratch buffer and binds the recommended keymaps (see
 --- `:h gutenberg-recommended-config`) to that buffer alone, so the
---- lessons work even in a bare config.
+--- tour works even in a bare config.
 
 local BUFFER_NAME = 'gutenberg://tour'
 
@@ -136,7 +136,7 @@ local function apply_keymaps(bufnr)
 end
 
 --- Open the tour in the current window. Any previous tour buffer is
---- replaced with a fresh copy of the lessons. Returns the tour
+--- replaced with a fresh copy of the document. Returns the tour
 --- buffer number.
 ---@return integer
 function M.open()

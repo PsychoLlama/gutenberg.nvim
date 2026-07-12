@@ -13,7 +13,7 @@ end
 describe('gutenberg.tour', function()
   after_each(close_tour)
 
-  it('opens a markdown scratch buffer with the lessons', function()
+  it('opens a markdown scratch buffer with the tour document', function()
     local bufnr = tour.open()
     assert.equal(BUFFER_NAME, vim.api.nvim_buf_get_name(bufnr))
     assert.equal('markdown', vim.bo[bufnr].filetype)
