@@ -1,10 +1,12 @@
 ---@class gutenberg
 ---@field code_block gutenberg.code_block
 ---@field config gutenberg.config
+---@field health gutenberg.health
 ---@field heading gutenberg.heading
 ---@field link gutenberg.link
 ---@field list gutenberg.list
 ---@field table gutenberg.table
+---@field tutor gutenberg.tutor
 local M = {}
 
 ---@param opts? gutenberg.Config

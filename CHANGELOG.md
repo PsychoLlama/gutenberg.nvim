@@ -48,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `gutenberg.tutor()` — an interactive tour in the spirit of
+  `:Tutor`. Opens a scratch copy of the shipped lessons
+  (`doc/gutenberg-tutor.md`) with the recommended keymaps bound to
+  that buffer alone, and ends by pointing at
+  `:h gutenberg-recommended-config` to take the bindings home.
 - `:checkhealth gutenberg` verifies the runtime dependencies: a
   supported Neovim, the `markdown` / `markdown_inline` treesitter
   parsers, and the gutenberg query files — including that they compile
