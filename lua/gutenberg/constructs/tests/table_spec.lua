@@ -510,4 +510,124 @@ describe('gutenberg.table', function()
       end)
     end)
   end)
+
+  describe('update', function()
+    it('writes the mutated table back in one update', function()
+      with_buffer({ '| a |', '| - |', '| 1 |' }, { 1, 0 }, function(ctx)
+        tbl.update(function(t)
+          tbl.set_cell(t, 0, 1, 'header')
+        end, ctx)
+        assert.same(
+          { '| header |', '| ------ |', '| 1      |' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('errors when the cursor is not on a table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          tbl.update(function() end, ctx)
+        end, 'cursor is not on a pipe table')
+      end)
+    end)
+  end)
+
+  describe('format', function()
+    it('normalizes ragged cells and pipes', function()
+      with_buffer(
+        { '| a | b |', '| - | - |', '|1|two|' },
+        { 3, 0 },
+        function(ctx)
+          tbl.format(ctx)
+          assert.same({
+            '| a   | b   |',
+            '| --- | --- |',
+            '| 1   | two |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end
+      )
+    end)
+  end)
+
+  describe('column_at', function()
+    it('resolves a cursor inside a header cell', function()
+      with_buffer(
+        { '| aa | bb |', '| -- | -- |', '| 11 | 22 |' },
+        { 1, 7 },
+        function(ctx)
+          assert.equal(2, tbl.column_at(ctx))
+        end
+      )
+    end)
+
+    it('resolves a cursor inside a body cell', function()
+      with_buffer(
+        { '| aa | bb |', '| -- | -- |', '| 11 | 22 |' },
+        { 3, 2 },
+        function(ctx)
+          assert.equal(1, tbl.column_at(ctx))
+        end
+      )
+    end)
+
+    it('resolves a cursor on the delimiter row', function()
+      with_buffer(
+        { '| aa | bb |', '| -- | -- |', '| 11 | 22 |' },
+        { 2, 8 },
+        function(ctx)
+          assert.equal(2, tbl.column_at(ctx))
+        end
+      )
+    end)
+
+    it('counts a pipe as closing the column before it', function()
+      -- Cursor on the middle pipe of `| aa | bb |`.
+      with_buffer({ '| aa | bb |', '| -- | -- |' }, { 1, 5 }, function(ctx)
+        assert.equal(1, tbl.column_at(ctx))
+      end)
+    end)
+
+    it('resolves the leading pipe to column 1', function()
+      with_buffer({ '| aa | bb |', '| -- | -- |' }, { 1, 0 }, function(ctx)
+        assert.equal(1, tbl.column_at(ctx))
+      end)
+    end)
+
+    it('returns nil off the table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.is_nil(tbl.column_at(ctx))
+      end)
+    end)
+  end)
+
+  describe('cycle_alignment', function()
+    it('advances none to left', function()
+      with_buffer({ '| a |', '| - |', '| 1 |' }, { 1, 2 }, function(ctx)
+        tbl.cycle_alignment(ctx)
+        assert.same(
+          { '| a   |', '| :-- |', '| 1   |' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('wraps right back around to none', function()
+      with_buffer({ '| a |', '| -: |', '| 1 |' }, { 1, 2 }, function(ctx)
+        tbl.cycle_alignment(ctx)
+        assert.same(
+          { '| a   |', '| --- |', '| 1   |' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('errors when the cursor is not on a table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          tbl.cycle_alignment(ctx)
+        end, 'cursor is not on a pipe table')
+      end)
+    end)
+  end)
 end)

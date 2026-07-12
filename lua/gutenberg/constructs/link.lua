@@ -448,4 +448,19 @@ function M.set_kind(link, kind)
   link.kind = kind
 end
 
+--- Read the link at the cursor, apply `fn`, and write the result back
+--- in a single buffer update. `fn` may mutate the link in place (and
+--- return nothing) or return a replacement list — return `{}` to
+--- delete the link. Errors if the cursor isn't on a link.
+---@param fn fun(link: gutenberg.link.Link): gutenberg.link.Link[]?
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.link.Link[] written
+function M.update(fn, ctx)
+  ctx = context.resolve(ctx)
+  local link, node = M.read(ctx)
+  local links = fn(link) or { link }
+  M.replace(node, links, ctx)
+  return links
+end
+
 return M

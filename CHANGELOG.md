@@ -48,6 +48,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A sugar tier built on the public primitives. Every construct module
+  gains `update(fn, ctx?)`, composing the gate → read → mutate →
+  replace loop into one call: it reads the construct at the cursor,
+  applies `fn` (mutate in place, or return a replacement list — `{}`
+  deletes), and writes back in a single buffer update.
+- Targeted sugar verbs: `list.update_list`, `list.toggle_checkbox`,
+  `list.toggle_ordered`, `list.toggle_ordered_list` (renumbers
+  siblings), `heading.promote` / `heading.demote` (clamped at levels
+  1/6), `table.format`, and `table.cycle_alignment`.
+- `table.column_at` resolves the cursor to a 1-based column index —
+  the interpretation primitive behind `cycle_alignment`.
 - `require('gutenberg').<submodule>` lazily resolves to
   `require('gutenberg.<submodule>')` on first access, so plugins can
   treat the root as a namespace without paying any startup-time

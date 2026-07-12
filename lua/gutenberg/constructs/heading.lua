@@ -173,6 +173,48 @@ function M.list(ctx)
   return results
 end
 
+--- Read the heading at the cursor, apply `fn`, and write the result
+--- back in a single buffer update. `fn` may mutate the heading in
+--- place (and return nothing) or return a replacement list — return
+--- `{}` to delete the heading. Errors if the cursor isn't on a
+--- heading.
+---@param fn fun(heading: gutenberg.heading.Heading): gutenberg.heading.Heading[]?
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.heading.Heading[] written
+function M.update(fn, ctx)
+  ctx = context.resolve(ctx)
+  local heading, node = M.read(ctx)
+  local headings = fn(heading) or { heading }
+  M.replace(node, headings, ctx)
+  return headings
+end
+
+--- Raise the heading at the cursor one level (`##` → `#`). Level-1
+--- headings are left unchanged. Errors if the cursor isn't on a
+--- heading.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.heading.Heading[] written
+function M.promote(ctx)
+  return M.update(function(heading)
+    if heading.level > 1 then
+      M.set_level(heading, heading.level - 1)
+    end
+  end, ctx)
+end
+
+--- Sink the heading at the cursor one level (`#` → `##`). Level-6
+--- headings are left unchanged. Errors if the cursor isn't on a
+--- heading.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.heading.Heading[] written
+function M.demote(ctx)
+  return M.update(function(heading)
+    if heading.level < 6 then
+      M.set_level(heading, heading.level + 1)
+    end
+  end, ctx)
+end
+
 ---@param level integer
 ---@param opts? { min_level?: integer, max_level?: integer }
 ---@return boolean

@@ -339,4 +339,81 @@ function M.set_checked(item, checked)
   item.checkbox = checked and 'x' or ' '
 end
 
+--- Read the item at the cursor, apply `fn`, and write the result back
+--- in a single buffer update. `fn` may mutate the item in place (and
+--- return nothing) or return a replacement list — return `{}` to
+--- delete the item. Errors if the cursor isn't on a list item.
+---@param fn fun(item: gutenberg.list.Item): gutenberg.list.Item[]?
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.list.Item[] written
+function M.update(fn, ctx)
+  ctx = context.resolve(ctx)
+  local item, node = M.read(ctx)
+  local items = fn(item) or { item }
+  M.replace(node, items, ctx)
+  return items
+end
+
+--- Read the cursor item's direct siblings, apply `fn` to the entries,
+--- and rewrite their marker rows in a single buffer update. `fn`
+--- mutates each entry's `item` in place; the entry nodes select the
+--- rows to rewrite, so entries cannot be added or removed here. Errors
+--- if the cursor isn't on a list item.
+---@param fn fun(entries: { item: gutenberg.list.Item, node: TSNode }[])
+---@param ctx? gutenberg.Context.Partial
+---@return { item: gutenberg.list.Item, node: TSNode }[] entries
+function M.update_list(fn, ctx)
+  ctx = context.resolve(ctx)
+  local entries, list_node = M.read_list(ctx)
+  fn(entries)
+  M.replace_list(list_node, entries, ctx)
+  return entries
+end
+
+--- Toggle the checkbox on the item at the cursor. Items without a
+--- checkbox gain one in the configured state
+--- (`gutenberg.list.Config.default_checked`); items with one flip.
+--- Errors if the cursor isn't on a list item.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.list.Item[] written
+function M.toggle_checkbox(ctx)
+  return M.update(function(item)
+    local checked = M.is_checked(item)
+    if checked == nil then
+      local config = require('gutenberg.config').get().list
+      M.set_checked(item, config.default_checked)
+    else
+      M.set_checked(item, not checked)
+    end
+  end, ctx)
+end
+
+--- Switch the item at the cursor between ordered and unordered (see
+--- `set_ordered`). Errors if the cursor isn't on a list item.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.list.Item[] written
+function M.toggle_ordered(ctx)
+  return M.update(function(item)
+    M.set_ordered(item, not M.is_ordered(item))
+  end, ctx)
+end
+
+--- Switch the cursor item and all of its direct siblings between
+--- ordered and unordered, renumbering from 1 when switching to
+--- ordered. The direction comes from the first sibling. Errors if the
+--- cursor isn't on a list item.
+---@param ctx? gutenberg.Context.Partial
+---@return { item: gutenberg.list.Item, node: TSNode }[] entries
+function M.toggle_ordered_list(ctx)
+  return M.update_list(function(entries)
+    local ordered = not M.is_ordered(entries[1].item)
+    for i, entry in ipairs(entries) do
+      M.set_ordered(entry.item, ordered)
+      if ordered then
+        M.set_marker(entry.item, i .. '.')
+      end
+    end
+  end, ctx)
+end
+
 return M
