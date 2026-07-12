@@ -42,5 +42,12 @@ describe('gutenberg', function()
       local gutenberg = require('gutenberg') ---@type table
       assert.is_nil(gutenberg.does_not_exist)
     end)
+
+    it('resolves the low-level api namespace', function()
+      local gutenberg = require('gutenberg')
+      assert.equal(require('gutenberg.api'), gutenberg.api)
+      assert.equal(require('gutenberg.api.list'), gutenberg.api.list)
+      assert.equal(require('gutenberg.api.heading'), gutenberg.api.heading)
+    end)
   end)
 end)

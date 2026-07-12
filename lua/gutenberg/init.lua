@@ -1,4 +1,5 @@
 ---@class gutenberg
+---@field api gutenberg.api
 ---@field code_block gutenberg.code_block
 ---@field config gutenberg.config
 ---@field health gutenberg.health
@@ -15,10 +16,11 @@ function M.setup(opts)
 end
 
 -- Lazy submodule access. `require('gutenberg').list` resolves to
--- `require('gutenberg.constructs.list')` (falling back to
--- `require('gutenberg.<key>')` for non-construct modules) on first
--- reference and caches the result so startup pays no import cost for
--- unused submodules.
+-- `require('gutenberg.constructs.list')` — the cursor-level sugar —
+-- falling back to `require('gutenberg.<key>')` for infrastructure
+-- modules (including `gutenberg.api`, the low-level primitives). The
+-- result is cached so startup pays no import cost for unused
+-- submodules.
 setmetatable(M, {
   __index = function(self, key)
     local ok, mod = pcall(require, 'gutenberg.constructs.' .. key)

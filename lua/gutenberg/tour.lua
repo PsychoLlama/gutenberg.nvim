@@ -44,32 +44,32 @@ local function apply_keymaps(bufnr)
   end
 
   map(']h', function()
-    local _, node = gutenberg.heading.find_next()
+    local _, node = gutenberg.api.heading.find_next()
     jump_to(node)
   end, 'next heading')
 
   map('[h', function()
-    local _, node = gutenberg.heading.find_prev()
+    local _, node = gutenberg.api.heading.find_prev()
     jump_to(node)
   end, 'previous heading')
 
   map('<leader>m<', function()
-    if gutenberg.heading.is_heading() then
+    if gutenberg.api.heading.is_heading() then
       gutenberg.heading.promote()
-    elseif gutenberg.list.is_list_item() then
-      local _, node = gutenberg.list.read()
-      gutenberg.list.dedent(node)
+    elseif gutenberg.api.list.is_list_item() then
+      local _, node = gutenberg.api.list.read()
+      gutenberg.api.list.dedent(node)
     else
       error('gutenberg: no heading or list item under the cursor', 0)
     end
   end, 'promote heading / dedent list item')
 
   map('<leader>m>', function()
-    if gutenberg.heading.is_heading() then
+    if gutenberg.api.heading.is_heading() then
       gutenberg.heading.demote()
-    elseif gutenberg.list.is_list_item() then
-      local _, node = gutenberg.list.read()
-      gutenberg.list.indent(node)
+    elseif gutenberg.api.list.is_list_item() then
+      local _, node = gutenberg.api.list.read()
+      gutenberg.api.list.indent(node)
     else
       error('gutenberg: no heading or list item under the cursor', 0)
     end
@@ -82,33 +82,33 @@ local function apply_keymaps(bufnr)
   map('<leader>ma', gutenberg.table.cycle_alignment, 'cycle column alignment')
 
   map('<leader>me', function()
-    if gutenberg.link.is_link() then
-      local lnk = gutenberg.link.read()
+    if gutenberg.api.link.is_link() then
+      local lnk = gutenberg.api.link.read()
       vim.ui.input({
         prompt = 'URL: ',
-        default = gutenberg.link.get_url(lnk) or '',
+        default = gutenberg.api.link.get_url(lnk) or '',
       }, function(input)
         if input == nil then
           return
         end
         notify_errors(function()
           gutenberg.link.update(function(l)
-            gutenberg.link.set_url(l, input)
+            gutenberg.api.link.set_url(l, input)
           end)
         end)
       end)
-    elseif gutenberg.code_block.is_code_block() then
-      local block = gutenberg.code_block.read()
+    elseif gutenberg.api.code_block.is_code_block() then
+      local block = gutenberg.api.code_block.read()
       vim.ui.input({
         prompt = 'Language: ',
-        default = gutenberg.code_block.get_language(block),
+        default = gutenberg.api.code_block.get_language(block),
       }, function(input)
         if input == nil then
           return
         end
         notify_errors(function()
           gutenberg.code_block.update(function(b)
-            gutenberg.code_block.set_language(b, input)
+            gutenberg.api.code_block.set_language(b, input)
           end)
         end)
       end)
@@ -118,17 +118,17 @@ local function apply_keymaps(bufnr)
   end, 'edit link URL / code block language')
 
   map('<leader>mE', function()
-    local lnk = gutenberg.link.read()
+    local lnk = gutenberg.api.link.read()
     vim.ui.input({
       prompt = 'Text: ',
-      default = gutenberg.link.get_text(lnk) or '',
+      default = gutenberg.api.link.get_text(lnk) or '',
     }, function(input)
       if input == nil then
         return
       end
       notify_errors(function()
         gutenberg.link.update(function(l)
-          gutenberg.link.set_text(l, input)
+          gutenberg.api.link.set_text(l, input)
         end)
       end)
     end)
