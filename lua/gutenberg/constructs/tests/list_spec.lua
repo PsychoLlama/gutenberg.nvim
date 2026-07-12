@@ -478,4 +478,133 @@ describe('gutenberg.list', function()
       end)
     end)
   end)
+
+  --- Show the scratch buffer in the current window so a cursor-moving
+  --- verb has a window to act on.
+  ---@param ctx gutenberg.Context
+  local function display(ctx)
+    vim.api.nvim_win_set_buf(0, ctx.bufnr)
+    vim.api.nvim_win_set_cursor(0, ctx.cursor)
+  end
+
+  describe('insert_item', function()
+    it('appends a blank sibling below, cloning the bullet', function()
+      with_buffer({ '- foo', '- bar' }, { 1, 0 }, function(ctx)
+        list.insert_item({ where = 'below' }, ctx)
+        assert.same(
+          { '- foo', '- ', '- bar' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('defaults to inserting below', function()
+      with_buffer({ '- foo' }, { 1, 0 }, function(ctx)
+        list.insert_item(nil, ctx)
+        assert.same(
+          { '- foo', '- ' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('prepends a blank sibling above', function()
+      with_buffer({ '- foo', '- bar' }, { 2, 0 }, function(ctx)
+        list.insert_item({ where = 'above' }, ctx)
+        assert.same(
+          { '- foo', '- ', '- bar' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('renumbers ordered siblings around the new item', function()
+      with_buffer(
+        { '1. first', '2. second', '3. third' },
+        { 1, 0 },
+        function(ctx)
+          list.insert_item({ where = 'below' }, ctx)
+          assert.same(
+            { '1. first', '2. ', '3. second', '4. third' },
+            vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+          )
+        end
+      )
+    end)
+
+    it('renumbers when prepending to an ordered list', function()
+      with_buffer({ '1. first', '2. second' }, { 1, 0 }, function(ctx)
+        list.insert_item({ where = 'above' }, ctx)
+        assert.same(
+          { '1. ', '2. first', '3. second' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('clones an unchecked checkbox when the item has one', function()
+      with_buffer({ '- [x] done' }, { 1, 0 }, function(ctx)
+        list.insert_item({ where = 'below' }, ctx)
+        assert.same(
+          { '- [x] done', '- [ ] ' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('lands the new sibling past nested children', function()
+      with_buffer({ '- foo', '  - child', '- bar' }, { 1, 0 }, function(ctx)
+        list.insert_item({ where = 'below' }, ctx)
+        assert.same(
+          { '- foo', '  - child', '- ', '- bar' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('matches the nesting depth of the cursor item', function()
+      with_buffer({ '- foo', '  - child' }, { 2, 4 }, function(ctx)
+        list.insert_item({ where = 'below' }, ctx)
+        assert.same(
+          { '- foo', '  - child', '  - ' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('moves the cursor onto the new item', function()
+      with_buffer({ '- foo' }, { 1, 0 }, function(ctx)
+        display(ctx)
+        list.insert_item({ where = 'below' }, ctx)
+        -- End of the fresh '- ' line; normal mode clamps to the last
+        -- column, and the keymap edge's `startinsert!` appends past it.
+        assert.same({ 2, 1 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('returns the inserted item', function()
+      with_buffer({ '- foo' }, { 1, 0 }, function(ctx)
+        local inserted = list.insert_item({ where = 'below' }, ctx)
+        assert.equal('-', inserted.marker)
+        assert.equal('', inserted.text)
+      end)
+    end)
+
+    it('errors on an unknown `where`', function()
+      with_buffer({ '- foo' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          list.insert_item({ where = 'sideways' }, ctx)
+        end, "'where' must be 'above' or 'below'")
+      end)
+    end)
+
+    it('errors when the cursor is not on a list item', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          list.insert_item({ where = 'below' }, ctx)
+        end, 'cursor is not on a list item')
+      end)
+    end)
+  end)
 end)

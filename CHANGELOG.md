@@ -32,7 +32,17 @@ Initial release.
   nests under `2.` even with a narrow 'tabstop' — and renumbers
   ordered lists on both sides of the move; list splice primitives
   (`items`, `insert`, `append`, `prepend`, `renumber`).
+- `list.insert_item` and `table.insert_row`: append or prepend a blank
+  sibling next to the cursor — a list item (cloning the marker and any
+  checkbox, renumbering ordered runs) or a table row — landing the
+  cursor on it for immediate text entry.
 - `code_block.insert` / `code_block.wrap` and `link.wrap` /
   `link.remove`.
+- Recommended keymaps: `<leader>mo` / `<leader>mO` append/prepend a
+  list item or table row and drop into insert mode; `<leader>ma` now
+  dispatches between toggling a list ordered and cycling a table
+  column's alignment. Table and cell motions moved to `]E` / `[E` and
+  `]e` / `[e` (off `]t` / `[t` and `]|` / `[|`), and heading navigation
+  is left to Neovim's builtin `]]` / `[[` and `gO`.
 
 [Unreleased]: https://github.com/PsychoLlama/gutenberg.nvim/commits/main

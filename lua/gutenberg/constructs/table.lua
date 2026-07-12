@@ -478,4 +478,40 @@ function M.move_column_right(ctx)
   return shift_column(1, context.resolve(ctx))
 end
 
+--- Insert a blank body row next to the cursor's row and land the cursor
+--- in its first cell. `opts.where` places the row `'below'` the cursor
+--- row or `'above'` it; defaults to `'below'`. Inserting `'above'` the
+--- header row is rejected — a pipe table's header must come first.
+--- One buffer update.
+---
+--- Unlike most codemods this moves the current window's cursor to the
+--- new row's first cell, ready for insert-mode text entry. Errors if
+--- the cursor isn't on a pipe table.
+---@param opts? { where?: 'above' | 'below' }
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.table.Table[] written
+function M.insert_row(opts, ctx)
+  opts = opts or {}
+  local where = opts.where or 'below'
+  if where ~= 'above' and where ~= 'below' then
+    error("gutenberg: insert_row 'where' must be 'above' or 'below'", 0)
+  end
+  ctx = context.resolve(ctx)
+
+  local _, node = api.read(ctx)
+  local sr = node:range()
+  local row = api.row_at(ctx) or 0
+  local col = api.column_at(ctx) or 1
+  if where == 'above' and row == 0 then
+    error('gutenberg: cannot insert a row above the header', 0)
+  end
+
+  local index = where == 'above' and row or row + 1
+  local written = M.update(function(tbl)
+    api.insert_row(tbl, index, {})
+  end, ctx)
+  land(ctx, sr, index, col)
+  return written
+end
+
 return M

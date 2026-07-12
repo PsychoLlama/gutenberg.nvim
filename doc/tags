@@ -110,6 +110,7 @@ gutenberg.list	gutenberg.txt	/*gutenberg.list*
 gutenberg.list.Config	gutenberg.txt	/*gutenberg.list.Config*
 gutenberg.list.dedent()	gutenberg.txt	/*gutenberg.list.dedent()*
 gutenberg.list.indent()	gutenberg.txt	/*gutenberg.list.indent()*
+gutenberg.list.insert_item()	gutenberg.txt	/*gutenberg.list.insert_item()*
 gutenberg.list.toggle_checkbox()	gutenberg.txt	/*gutenberg.list.toggle_checkbox()*
 gutenberg.list.toggle_ordered()	gutenberg.txt	/*gutenberg.list.toggle_ordered()*
 gutenberg.list.toggle_ordered_list()	gutenberg.txt	/*gutenberg.list.toggle_ordered_list()*
@@ -123,6 +124,7 @@ gutenberg.table.Table	gutenberg.txt	/*gutenberg.table.Table*
 gutenberg.table.actions()	gutenberg.txt	/*gutenberg.table.actions()*
 gutenberg.table.cycle_alignment()	gutenberg.txt	/*gutenberg.table.cycle_alignment()*
 gutenberg.table.format()	gutenberg.txt	/*gutenberg.table.format()*
+gutenberg.table.insert_row()	gutenberg.txt	/*gutenberg.table.insert_row()*
 gutenberg.table.move_column_left()	gutenberg.txt	/*gutenberg.table.move_column_left()*
 gutenberg.table.move_column_right()	gutenberg.txt	/*gutenberg.table.move_column_right()*
 gutenberg.table.next_cell()	gutenberg.txt	/*gutenberg.table.next_cell()*

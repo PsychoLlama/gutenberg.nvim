@@ -43,11 +43,11 @@ describe('gutenberg.tour', function()
       return lhs
     end
 
-    assert.is_true(buffer_maps(bufnr, 'n')[']h'] == true)
-    assert.is_true(buffer_maps(bufnr, 'n')['[h'] == true)
+    assert.is_true(buffer_maps(bufnr, 'n')[']E'] == true)
+    assert.is_true(buffer_maps(bufnr, 'n')['[E'] == true)
 
     local other = vim.api.nvim_create_buf(false, true)
-    assert.is_nil(buffer_maps(other, 'n')[']h'])
+    assert.is_nil(buffer_maps(other, 'n')[']E'])
     vim.api.nvim_buf_delete(other, { force = true })
   end)
 
@@ -69,7 +69,7 @@ describe('gutenberg.tour', function()
 
     -- Motions land in normal, visual, and operator-pending modes.
     for _, mode in ipairs({ 'n', 'x', 'o' }) do
-      for _, lhs in ipairs({ ']h', '[h', ']t', '[t', ']|', '[|' }) do
+      for _, lhs in ipairs({ ']E', '[E', ']e', '[e' }) do
         assert.is_true(maps(mode)[lhs] == true, mode .. ' ' .. lhs)
       end
     end
@@ -81,13 +81,13 @@ describe('gutenberg.tour', function()
 
     -- Edits bind normal + visual.
     local leader = vim.g.mapleader or '\\'
-    for _, suffix in ipairs({ 'm<', 'm>', 'mx', 'mo', 'ml', 'mc' }) do
+    for _, suffix in ipairs({ 'm<', 'm>', 'mx', 'ma', 'ml', 'mc' }) do
       assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
       assert.is_true(maps('x')[leader .. suffix] == true, 'x ' .. suffix)
     end
 
     -- Normal-mode-only binds.
-    for _, suffix in ipairs({ 'mf', 'ma', 'mt', 'mL' }) do
+    for _, suffix in ipairs({ 'mf', 'mt', 'mL', 'mo', 'mO' }) do
       assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
       assert.is_nil(maps('x')[leader .. suffix], 'x ' .. suffix)
     end

@@ -47,13 +47,12 @@ local function apply_keymaps(bufnr)
     })
   end
 
-  -- Motions
-  motion(']h', gutenberg.heading.next, 'next heading')
-  motion('[h', gutenberg.heading.prev, 'previous heading')
-  motion(']t', gutenberg.table.next_table, 'next table')
-  motion('[t', gutenberg.table.prev_table, 'previous table')
-  motion(']|', gutenberg.table.next_cell, 'next table cell')
-  motion('[|', gutenberg.table.prev_cell, 'previous table cell')
+  -- Motions. Heading navigation is left to the builtin markdown
+  -- ftplugin's `[[` / `]]`.
+  motion(']E', gutenberg.table.next_table, 'next table')
+  motion('[E', gutenberg.table.prev_table, 'previous table')
+  motion(']e', gutenberg.table.next_cell, 'next table cell')
+  motion('[e', gutenberg.table.prev_cell, 'previous table cell')
 
   -- Inner-cell textobject. Off-table it errors before selecting,
   -- which cancels a pending operator and notifies.
@@ -89,26 +88,52 @@ local function apply_keymaps(bufnr)
 
   -- Lists
   edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
-  vim.keymap.set('n', '<leader>mo', function()
-    keymap.notify(gutenberg.list.toggle_ordered_list)
-  end, { buffer = bufnr, desc = 'gutenberg: toggle ordered list' })
-  vim.keymap.set(
-    'x',
-    '<leader>mo',
-    keymap.visual(gutenberg.list.toggle_ordered),
-    { buffer = bufnr, desc = 'gutenberg: toggle ordered' }
-  )
+
+  -- Append / prepend a sibling — a list item or a table row, whichever
+  -- is under the cursor — then drop into insert mode on it. Lists land
+  -- at the end of the fresh marker (`startinsert!`); table cells land
+  -- inside the first cell (`startinsert`).
+  ---@param where 'above' | 'below'
+  local function insert_sibling(where)
+    return function()
+      keymap.notify(function()
+        local ctx = { count = vim.v.count1 }
+        if gutenberg.api.list.is_list_item(ctx) then
+          gutenberg.list.insert_item({ where = where }, ctx)
+          vim.cmd('startinsert!')
+        elseif gutenberg.api.table.is_table(ctx) then
+          gutenberg.table.insert_row({ where = where }, ctx)
+          vim.cmd('startinsert')
+        else
+          error('gutenberg: no list or table under the cursor', 0)
+        end
+      end)
+    end
+  end
+  vim.keymap.set('n', '<leader>mo', insert_sibling('below'), {
+    buffer = bufnr,
+    desc = 'gutenberg: append item / row',
+  })
+  vim.keymap.set('n', '<leader>mO', insert_sibling('above'), {
+    buffer = bufnr,
+    desc = 'gutenberg: prepend item / row',
+  })
 
   -- Tables
   vim.keymap.set('n', '<leader>mf', function()
     keymap.notify(gutenberg.table.format)
   end, { buffer = bufnr, desc = 'gutenberg: format table' })
-  vim.keymap.set(
-    'n',
-    '<leader>ma',
-    keymap.repeatable(gutenberg.table.cycle_alignment),
-    { buffer = bufnr, expr = true, desc = 'gutenberg: cycle alignment' }
-  )
+  -- One binding for the "alignment axis": toggle a list ordered, or
+  -- cycle a table column's alignment.
+  edit('<leader>ma', function(ctx)
+    if gutenberg.api.list.is_list_item(ctx) then
+      gutenberg.list.toggle_ordered(ctx)
+    elseif gutenberg.api.table.is_table(ctx) then
+      gutenberg.table.cycle_alignment(ctx)
+    else
+      error('gutenberg: no list or table under the cursor', 0)
+    end
+  end, 'toggle ordered / cycle column alignment')
   vim.keymap.set('n', '<leader>mt', function()
     keymap.notify(gutenberg.table.actions)
   end, { buffer = bufnr, desc = 'gutenberg: table actions' })

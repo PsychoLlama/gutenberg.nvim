@@ -531,4 +531,91 @@ describe('gutenberg.table', function()
       end)
     end)
   end)
+
+  describe('insert_row', function()
+    it('inserts a blank row below the cursor row', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        tbl.insert_row({ where = 'below' }, ctx)
+        assert.same({
+          '| a   | b   |',
+          '| --- | --- |',
+          '| a1  | b1  |',
+          '|     |     |',
+          '| a2  | b2  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('defaults to inserting below', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        tbl.insert_row(nil, ctx)
+        assert.same({
+          '| a   | b   |',
+          '| --- | --- |',
+          '| a1  | b1  |',
+          '|     |     |',
+          '| a2  | b2  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('inserts a blank row above the cursor row', function()
+      with_buffer(GRID, { 4, 2 }, function(ctx)
+        tbl.insert_row({ where = 'above' }, ctx)
+        assert.same({
+          '| a   | b   |',
+          '| --- | --- |',
+          '| a1  | b1  |',
+          '|     |     |',
+          '| a2  | b2  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('inserts below the header when the cursor is on it', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        tbl.insert_row({ where = 'below' }, ctx)
+        assert.same({
+          '| a   | b   |',
+          '| --- | --- |',
+          '|     |     |',
+          '| a1  | b1  |',
+          '| a2  | b2  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('lands the cursor in the new row', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        display(ctx)
+        tbl.insert_row({ where = 'below' }, ctx)
+        assert.same({ 4, 2 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('refuses to insert above the header', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        assert.error_matches(function()
+          tbl.insert_row({ where = 'above' }, ctx)
+        end, 'cannot insert a row above the header')
+      end)
+    end)
+
+    it('errors on an unknown `where`', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        assert.error_matches(function()
+          ---@diagnostic disable-next-line: assign-type-mismatch
+          tbl.insert_row({ where = 'sideways' }, ctx)
+        end, "'where' must be 'above' or 'below'")
+      end)
+    end)
+
+    it('errors when the cursor is not on a pipe table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          tbl.insert_row({ where = 'below' }, ctx)
+        end, 'cursor is not on a pipe table')
+      end)
+    end)
+  end)
 end)

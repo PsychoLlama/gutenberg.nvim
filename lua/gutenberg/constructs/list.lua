@@ -511,4 +511,75 @@ function M.toggle_ordered_list(ctx)
   end, ctx)
 end
 
+--- Insert a blank sibling next to the item at the cursor, cloning its
+--- indent and marker (and an unchecked checkbox when the cursor item
+--- carries one), then renumber every ordered sibling group in the
+--- affected list so the new item counts in and the ones after it shift
+--- up. `opts.where` places the new item `'below'` the cursor item —
+--- past its nested children — or `'above'` it; defaults to `'below'`.
+--- One buffer update.
+---
+--- Unlike most codemods this moves the current window's cursor onto the
+--- new item's line — its rendered marker carries a trailing space, so a
+--- following `startinsert!` lands ready for text entry. Errors if the
+--- cursor isn't on a list item.
+---@param opts? { where?: 'above' | 'below' }
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.list.Item inserted
+function M.insert_item(opts, ctx)
+  opts = opts or {}
+  local where = opts.where or 'below'
+  if where ~= 'above' and where ~= 'below' then
+    error("gutenberg: insert_item 'where' must be 'above' or 'below'", 0)
+  end
+  ctx = context.resolve(ctx)
+
+  local item, node = api.read(ctx)
+  local inserted = api.create({
+    indent = item.indent,
+    marker = item.marker,
+    checkbox = item.checkbox ~= nil and ' ' or nil,
+  })
+
+  -- Renumber over the whole enclosing list, exactly as a shift does:
+  -- splice the fresh marker row into the list's line span, then let
+  -- renumber_lines reparse and re-sequence every ordered group. Empty
+  -- ordered items still parse as list_items, so the new one counts.
+  local list_node = outer_list(node)
+  local span_start = list_node:range()
+  local span_stop = content_end(list_node, ctx.bufnr)
+  local lines =
+    vim.api.nvim_buf_get_lines(ctx.bufnr, span_start, span_stop + 1, false)
+
+  ---@type integer
+  local insert_row
+  if where == 'below' then
+    insert_row = content_end(node, ctx.bufnr) + 1
+  else
+    insert_row = (node:range())
+  end
+  -- A trailing space separates the marker from whatever the caller
+  -- types next; renumber_lines preserves everything past the marker.
+  table.insert(
+    lines,
+    insert_row - span_start + 1,
+    api.render(inserted) .. ' '
+  )
+
+  renumber_lines(lines)
+  buffer.set_lines(ctx.bufnr, span_start, span_stop + 1, lines)
+
+  if vim.api.nvim_win_get_buf(0) == ctx.bufnr then
+    local line = vim.api.nvim_buf_get_lines(
+      ctx.bufnr,
+      insert_row,
+      insert_row + 1,
+      false
+    )[1] or ''
+    vim.api.nvim_win_set_cursor(0, { insert_row + 1, #line })
+  end
+
+  return inserted
+end
+
 return M

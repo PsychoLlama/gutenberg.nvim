@@ -24,9 +24,9 @@ boundary call adds no undo entry.
 
 #### A heading to move around
 
-`]h` and `[h` jump to the next and previous heading, counts included:
-`3]h` jumps three ahead, and `d]h` deletes to the next one. Neither
-changes the document.
+Neovim's builtin markdown support already navigates headings, so
+gutenberg leaves that alone: `]]` and `[[` jump to the next and
+previous section, and `gO` opens an outline of the whole document.
 
 Visually select from here up to the first heading and press
 `<leader>m>` — every heading in the selection demotes in one undo
@@ -45,13 +45,18 @@ selection checks everything, a fully-checked one unchecks:
 - [ ] apples
 - pears
 
-`<leader>mo` switches every sibling at the cursor's level between
-bullets and numbers, renumbering from 1 as it goes. In visual mode it
-converts just the selection:
+`<leader>ma` switches the item under the cursor between a bullet and a
+number, renumbering the run from 1 as it goes. Give it a count to
+convert several at once, or select a range in visual mode:
 
 - preheat the oven
 - whisk the batter
 - bake for 25 minutes
+
+`<leader>mo` appends a fresh sibling below the cursor item and drops
+you into insert mode; `<leader>mO` prepends one above. Ordered lists
+renumber around the new item, and a checkbox item hands the new one a
+blank box. Add a step to the recipe above.
 
 `<leader>m>` and `<leader>m<` — the same depth bindings that demote
 and promote headings — indent and dedent list items here, renumbering
@@ -73,20 +78,21 @@ the buffer.
 
 | Keybinding                  | What it does                                          |
 | --------------------------- | ----------------------------------------------------- |
-| `]t` / `[t`                 | Jump to the next / previous table                     |
-| `]\|` / `[\|`               | Jump to the next / previous cell                      |
+| `]E` / `[E`                 | Jump to the next / previous table                     |
+| `]e` / `[e`                 | Jump to the next / previous cell                      |
 | `i\|`                       | Inner-cell textobject: try `ci\|` or `vi\|`           |
 | `<leader>m<` / `<leader>m>` | Drag the cursor's column left / right                 |
+| `<leader>mo` / `<leader>mO` | Add a row below / above, then insert                  |
 | `<leader>mf`                | Format the table: pad cells, align pipes              |
 | `<leader>ma`                | Cycle the cursor column: none → left → center → right |
 | `<leader>mt`                | Structural actions: rows, columns, alignment          |
 
-A ragged table to work with — walk its cells with `]|`, rewrite a cell
+A ragged table to work with — walk its cells with `]e`, rewrite a cell
 with `ci|`, then `<leader>mf` to clean it up. The depth bindings work
 here too: `<leader>m>` drags the cursor's column right and `<leader>m<`
 drags it back, cursor riding along so repeated presses keep dragging.
-For everything else — inserting rows, deleting columns — `<leader>mt`
-opens a picker of structural edits:
+Add a row with `<leader>mo`; for the rest — deleting columns, moving
+rows — `<leader>mt` opens a picker of structural edits:
 
 <!-- prettier-ignore -->
 | Item | Price | Notes |
@@ -95,7 +101,7 @@ opens a picker of structural edits:
 | oranges |   2.00 |organic|
 |pears  | 1.75|local|
 
-And a second table so `]t` / `[t` have somewhere to go:
+And a second table so `]E` / `[E` have somewhere to go:
 
 | Step | Status |
 | ---- | ------ |
@@ -138,6 +144,11 @@ adapted through `:help gutenberg.keymap` for counts, `.`-repeat, and
 visual mode. `:help gutenberg-api` documents the full surface — the
 root modules carry these keymap-ready verbs, and
 `require('gutenberg.api')` carries the primitives they compose.
+
+gutenberg builds on what Neovim's markdown support already gives you,
+rather than duplicating it. Worth knowing before you map anything:
+`]]` / `[[` jump between sections, `gO` opens a document outline, and
+`ci(` / `ci[` edit a link's URL and text as plain delimited fields.
 
 The exact keymap set used here lives in
 `:help gutenberg-recommended-config`, scoped to markdown and MDX

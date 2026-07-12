@@ -232,21 +232,22 @@ MDX buffers, surfaces failures as notifications, and gives every edit
 counts, visual mode, and `.`-repeat:
 
   Motions (n, x, o — count-aware, operator-friendly) ~
-    ]h  [h        next / previous heading
-    ]t  [t        next / previous table (mind |unimpaired|-style
-                  muscle memory if you already use ]t for tabs)
-    ]|  [|        next / previous table cell
+    ]E  [E        next / previous table
+    ]e  [e        next / previous table cell
     i|            inner table cell textobject (x, o)
 
   Edits (n with count + `.`, x over the selection) ~
     <leader>m<    promote heading / dedent list item / move column left
     <leader>m>    demote heading / indent list item / move column right
     <leader>mx    toggle checkbox (visual: bulk check/uncheck)
-    <leader>mo    toggle ordered (n: whole sibling list; x: selection)
+    <leader>ma    toggle list ordered / cycle column alignment
+
+  Insert siblings (n) ~
+    <leader>mo    append list item / table row below, then insert
+    <leader>mO    prepend list item / table row above, then insert
 
   Tables ~
     <leader>mf    format table
-    <leader>ma    cycle column alignment (count, `.`)
     <leader>mt    structural actions picker (rows, columns, alignment)
 
   Links and code blocks ~
@@ -254,6 +255,10 @@ counts, visual mode, and `.`-repeat:
                   for the URL — empty is fine, `[text]()` is legal
     <leader>mL    remove the link under the cursor (`.`-repeatable)
     <leader>mc    insert empty code block (n) / fence selection (x)
+
+Built into Neovim already, so this config leaves them alone: the
+markdown |ft-markdown-plugin| binds `]]` / `[[` to jump between
+sections (heading navigation) and `gO` to open a section outline.
 
 Link EDITING has no binding on purpose: the URL and text of
 `[text](url)` are plain delimited text, so builtin `ci(` and `ci[`
@@ -288,13 +293,12 @@ already edit them.
         })
       end
 
-      -- Motions
-      motion(']h', gutenberg.heading.next, 'next heading')
-      motion('[h', gutenberg.heading.prev, 'previous heading')
-      motion(']t', gutenberg.table.next_table, 'next table')
-      motion('[t', gutenberg.table.prev_table, 'previous table')
-      motion(']|', gutenberg.table.next_cell, 'next table cell')
-      motion('[|', gutenberg.table.prev_cell, 'previous table cell')
+      -- Motions. Heading navigation is left to the builtin markdown
+      -- ftplugin's `[[` / `]]` (see |ft-markdown-plugin|).
+      motion(']E', gutenberg.table.next_table, 'next table')
+      motion('[E', gutenberg.table.prev_table, 'previous table')
+      motion(']e', gutenberg.table.next_cell, 'next table cell')
+      motion('[e', gutenberg.table.prev_cell, 'previous table cell')
 
       -- Inner-cell textobject. Off-table it errors before selecting,
       -- which cancels a pending operator and notifies.
@@ -330,26 +334,53 @@ already edit them.
 
       -- Lists
       edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
-      vim.keymap.set('n', '<leader>mo', function()
-        keymap.notify(gutenberg.list.toggle_ordered_list)
-      end, { buffer = args.buf, desc = 'gutenberg: toggle ordered list' })
-      vim.keymap.set(
-        'x',
-        '<leader>mo',
-        keymap.visual(gutenberg.list.toggle_ordered),
-        { buffer = args.buf, desc = 'gutenberg: toggle ordered' }
-      )
+
+      -- Append / prepend a sibling — a list item or a table row,
+      -- whichever is under the cursor — then drop into insert mode on
+      -- it. Lists land at the end of the fresh marker (startinsert!);
+      -- table cells land inside the first cell (startinsert).
+      local function insert_sibling(where)
+        return function()
+          keymap.notify(function()
+            local ctx = { count = vim.v.count1 }
+            if gutenberg.api.list.is_list_item(ctx) then
+              gutenberg.list.insert_item({ where = where }, ctx)
+              vim.cmd('startinsert!')
+            elseif gutenberg.api.table.is_table(ctx) then
+              gutenberg.table.insert_row({ where = where }, ctx)
+              vim.cmd('startinsert')
+            else
+              error('gutenberg: no list or table under the cursor', 0)
+            end
+          end)
+        end
+      end
+      vim.keymap.set('n', '<leader>mo', insert_sibling('below'), {
+        buffer = args.buf,
+        desc = 'gutenberg: append item / row',
+      })
+      vim.keymap.set('n', '<leader>mO', insert_sibling('above'), {
+        buffer = args.buf,
+        desc = 'gutenberg: prepend item / row',
+      })
 
       -- Tables
       vim.keymap.set('n', '<leader>mf', function()
         keymap.notify(gutenberg.table.format)
       end, { buffer = args.buf, desc = 'gutenberg: format table' })
-      vim.keymap.set(
-        'n',
-        '<leader>ma',
-        keymap.repeatable(gutenberg.table.cycle_alignment),
-        { buffer = args.buf, expr = true, desc = 'gutenberg: cycle alignment' }
-      )
+
+      -- The "alignment axis": toggle a list ordered, or cycle a table
+      -- column's alignment.
+      edit('<leader>ma', function(ctx)
+        if gutenberg.api.list.is_list_item(ctx) then
+          gutenberg.list.toggle_ordered(ctx)
+        elseif gutenberg.api.table.is_table(ctx) then
+          gutenberg.table.cycle_alignment(ctx)
+        else
+          error('gutenberg: no list or table under the cursor', 0)
+        end
+      end, 'toggle ordered / cycle column alignment')
+
       vim.keymap.set('n', '<leader>mt', function()
         keymap.notify(gutenberg.table.actions)
       end, { buffer = args.buf, desc = 'gutenberg: table actions' })
@@ -576,6 +607,17 @@ toggle_ordered_list({ctx})               *gutenberg.list.toggle_ordered_list()*
     Switch the cursor item and all of its direct siblings between
     ordered and unordered, renumbering from 1 when switching to
     ordered. The direction comes from the first sibling.
+
+insert_item({opts}, {ctx})                       *gutenberg.list.insert_item()*
+    Insert a blank sibling next to the item at the cursor, cloning its
+    indent and marker (and an unchecked checkbox when the cursor item
+    has one), then renumber every ordered sibling group so the new item
+    counts in. `opts.where` is `'below'` (default; past the item's
+    nested children) or `'above'`. One buffer update. Unlike most
+    codemods it moves the window's cursor onto the new item — its
+    rendered marker carries a trailing space, so a following
+    |startinsert!| lands ready for text entry. Errors when the cursor
+    isn't on a list item.
 
 indent({ctx})                                         *gutenberg.list.indent()*
 dedent({ctx})                                         *gutenberg.list.dedent()*
@@ -814,6 +856,14 @@ move_column_right({ctx})                 *gutenberg.table.move_column_right()*
     follows the column so repeated presses keep dragging it. Errors
     when the cursor isn't on a pipe table, or when the column is
     already at the edge it would move past.
+
+insert_row({opts}, {ctx})                         *gutenberg.table.insert_row()*
+    Insert a blank body row next to the cursor's row in one buffer
+    update. `opts.where` is `'below'` (default) or `'above'`; inserting
+    `'above'` the header is rejected. Unlike most codemods it moves the
+    window's cursor into the new row's first cell, ready for
+    insert-mode text entry. Errors when the cursor isn't on a pipe
+    table.
 
 actions({ctx})                                     *gutenberg.table.actions()*
     Open a |vim.ui.select| picker of structural operations on the
