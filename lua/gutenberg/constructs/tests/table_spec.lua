@@ -71,5 +71,33 @@ describe('gutenberg.table', function()
         end, 'cursor is not on a pipe table')
       end)
     end)
+
+    it('advances count steps', function()
+      with_buffer({ '| a |', '| - |', '| 1 |' }, { 1, 2 }, function(ctx)
+        tbl.cycle_alignment({
+          bufnr = ctx.bufnr,
+          cursor = ctx.cursor,
+          count = 2,
+        })
+        assert.same(
+          { '|  a  |', '| :-: |', '|  1  |' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('wraps a count shift around the cycle', function()
+      with_buffer({ '| a |', '| :- |', '| 1 |' }, { 1, 2 }, function(ctx)
+        tbl.cycle_alignment({
+          bufnr = ctx.bufnr,
+          cursor = ctx.cursor,
+          count = 7,
+        })
+        assert.same(
+          { '| a   |', '| --- |', '| 1   |' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
   end)
 end)

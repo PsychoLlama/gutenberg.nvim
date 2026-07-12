@@ -35,18 +35,16 @@ function M.format(ctx)
   return M.update(function() end, ctx)
 end
 
----@type table<gutenberg.table.Alignment, gutenberg.table.Alignment>
-local NEXT_ALIGNMENT = {
-  none = 'left',
-  left = 'center',
-  center = 'right',
-  right = 'none',
-}
+---@type gutenberg.table.Alignment[]
+local ALIGNMENT_CYCLE = { 'none', 'left', 'center', 'right' }
 
---- Advance the alignment of the column under the cursor one step
---- through none → left → center → right → none, rewriting the table in
---- a single buffer update. Errors if the cursor isn't on a pipe table,
---- or when the cursor column has no delimiter cell.
+---@type table<gutenberg.table.Alignment, integer>
+local ALIGNMENT_INDEX = { none = 1, left = 2, center = 3, right = 4 }
+
+--- Advance the alignment of the column under the cursor `ctx.count`
+--- steps through none → left → center → right → none, rewriting the
+--- table in a single buffer update. Errors if the cursor isn't on a
+--- pipe table, or when the cursor column has no delimiter cell.
 ---@param ctx? gutenberg.Context.Partial
 ---@return gutenberg.table.Table[] written
 function M.cycle_alignment(ctx)
@@ -56,7 +54,9 @@ function M.cycle_alignment(ctx)
     error('gutenberg: cursor is not on a pipe table', 0)
   end
   return M.update(function(tbl)
-    api.set_alignment(tbl, col, NEXT_ALIGNMENT[api.get_alignment(tbl, col)])
+    local index = ALIGNMENT_INDEX[api.get_alignment(tbl, col)]
+    local advanced = ALIGNMENT_CYCLE[(index - 1 + ctx.count) % 4 + 1]
+    api.set_alignment(tbl, col, advanced)
   end, ctx)
 end
 

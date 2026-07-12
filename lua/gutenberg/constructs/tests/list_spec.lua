@@ -123,6 +123,91 @@ describe('gutenberg.list', function()
         )
       end)
     end)
+
+    it('targets the cursor item plus the next count - 1', function()
+      local lines = { '- [ ] a', '- b', '- [ ] c' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.toggle_checkbox({
+          bufnr = ctx.bufnr,
+          cursor = ctx.cursor,
+          count = 2,
+        })
+        assert.same(
+          { '- [x] a', '- [x] b', '- [ ] c' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('counts through nested items in document order', function()
+      local lines = { '- [ ] a', '  - [ ] nested', '- [ ] b' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.toggle_checkbox({
+          bufnr = ctx.bufnr,
+          cursor = ctx.cursor,
+          count = 2,
+        })
+        assert.same(
+          { '- [x] a', '  - [x] nested', '- [ ] b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('checks all when any range target is unchecked or bare', function()
+      local lines = { '- [x] a', '- b', '- [ ] c' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.toggle_checkbox({
+          bufnr = ctx.bufnr,
+          range = { mode = 'line', start = { 1, 0 }, stop = { 3, 0 } },
+        })
+        assert.same(
+          { '- [x] a', '- [x] b', '- [x] c' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('unchecks all when every range target is checked', function()
+      local lines = { '- [x] a', '- [x] b' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.toggle_checkbox({
+          bufnr = ctx.bufnr,
+          range = { mode = 'line', start = { 1, 0 }, stop = { 2, 0 } },
+        })
+        assert.same(
+          { '- [ ] a', '- [ ] b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('applies a bulk toggle as one buffer update', function()
+      local lines = { '- [ ] a', 'paragraph splits the lists', '- [ ] b' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.toggle_checkbox({
+          bufnr = ctx.bufnr,
+          range = { mode = 'line', start = { 1, 0 }, stop = { 3, 0 } },
+        })
+        assert.same(
+          { '- [x] a', 'paragraph splits the lists', '- [x] b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+        assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
+    it('errors when the range holds no list item', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          list.toggle_checkbox({
+            bufnr = ctx.bufnr,
+            range = { mode = 'line', start = { 1, 0 }, stop = { 1, 0 } },
+          })
+        end, 'no list item in the selected range')
+      end)
+    end)
   end)
 
   describe('toggle_ordered', function()
@@ -143,6 +228,54 @@ describe('gutenberg.list', function()
           { '- foo' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
+      end)
+    end)
+
+    it('renumbers count targets from the first target direction', function()
+      local lines = { '- a', '- b', '- c' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.toggle_ordered({
+          bufnr = ctx.bufnr,
+          cursor = ctx.cursor,
+          count = 2,
+        })
+        assert.same(
+          { '1. a', '2. b', '- c' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it(
+      'switches a range to bullets when the first target is ordered',
+      function()
+        local lines = { '1. a', '2. b', '- c' }
+        with_buffer(lines, { 1, 0 }, function(ctx)
+          list.toggle_ordered({
+            bufnr = ctx.bufnr,
+            range = { mode = 'line', start = { 1, 0 }, stop = { 3, 0 } },
+          })
+          assert.same(
+            { '- a', '- b', '- c' },
+            vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+          )
+        end)
+      end
+    )
+
+    it('applies a range toggle as one buffer update', function()
+      local lines = { '- a', '- b' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.toggle_ordered({
+          bufnr = ctx.bufnr,
+          range = { mode = 'line', start = { 1, 0 }, stop = { 2, 0 } },
+        })
+        assert.same(
+          { '1. a', '2. b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+        assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
       end)
     end)
   end)
