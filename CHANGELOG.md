@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Construct recognition is now driven by runtime treesitter query files
+  (`queries/markdown/gutenberg.scm` and
+  `queries/markdown_inline/gutenberg.scm`) instead of hardcoded node-type
+  lists. Extend them from your own runtimepath with an `;; extends` query
+  to make the `is_*` probes recognize additional node types; inline link
+  patterns must `#set! kind` to one of the built-in
+  `gutenberg.link.Kind`s. See `:h gutenberg-queries`.
 - `gutenberg.list.Config.indent` is now optional. When unset (the
   default), `list.indent` / `list.dedent` derive the indent unit from
   the target buffer's `&expandtab` and `&tabstop` so a single keymap

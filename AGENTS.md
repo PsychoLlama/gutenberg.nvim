@@ -7,7 +7,8 @@
 ## Architecture
 
 - One module per markdown construct, all with the same surface: `is_*` probes the cursor, `read` decodes the node into a plain value type, `create`/`render` build text from a value, `replace` writes it back in one update, and getter/setter pairs mutate the value in memory.
-- Shared treesitter plumbing lives in `gutenberg.ts`: cursor→node resolution, range clamps, container prefixes, traversal. Feature modules must not call `vim.treesitter.get_parser` or `descendant_for_range` directly — extend `gutenberg.ts` when it falls short.
+- Node recognition is declared in `queries/{markdown,markdown_inline}/gutenberg.scm` — runtime treesitter query files with one capture per construct (`@heading`, `@table`, `@link`, …). The query-file namespace is shared across the whole `runtimepath`, so the file name carries the plugin prefix; users extend recognition with their own `;; extends` query.
+- Shared treesitter plumbing lives in `gutenberg.ts`: it loads those queries and resolves cursor→capture, plus range clamps, container prefixes, traversal. Feature modules must not call `vim.treesitter.get_parser` or run queries directly — extend `gutenberg.ts` when it falls short.
 - All buffer writes go through `gutenberg.buffer`, which skips no-op writes so they don't pollute undo history.
 - Specs live in a `tests/` directory colocated with the module they cover (e.g. `foo.lua` is tested by `tests/foo_spec.lua` in the same directory) and share `gutenberg.tests.utils` for scratch buffers. The flake drops every `tests/` directory (at any depth) from the packaged fileset, so support code never ships.
 

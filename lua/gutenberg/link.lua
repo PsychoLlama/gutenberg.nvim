@@ -19,24 +19,6 @@ local ts = require('gutenberg.ts')
 ---@class gutenberg.link
 local M = {}
 
----@type table<string, true>
-local LINK_NODE_TYPES = {
-  inline_link = true,
-  full_reference_link = true,
-  collapsed_reference_link = true,
-  shortcut_link = true,
-  uri_autolink = true,
-}
-
----@type table<string, gutenberg.link.Kind>
-local NODE_TYPE_TO_KIND = {
-  inline_link = 'inline',
-  full_reference_link = 'reference_full',
-  collapsed_reference_link = 'reference_collapsed',
-  shortcut_link = 'reference_shortcut',
-  uri_autolink = 'autolink',
-}
-
 --- Strip a single pair of matching surrounding delimiters from `text`.
 --- Markdown link titles use any of `"..."`, `'...'`, or `(...)`. Treesitter
 --- exposes the delimiters as part of the node, so we trim them here.
@@ -106,26 +88,32 @@ local function read_definition_node(node, bufnr)
   return { label = label, url = url, title = title }
 end
 
---- Read a link node into a Link based on its type.
+--- Read a link node into a Link. `kind` comes from the query pattern's
+--- `#set!` metadata (see queries/markdown_inline/gutenberg.scm). Errors
+--- on kinds this module doesn't know how to decode.
 ---@param node TSNode
 ---@param bufnr integer
+---@param kind string
 ---@return gutenberg.link.Link
-local function read_link_node(node, bufnr)
-  local type_ = node:type()
-  local kind = NODE_TYPE_TO_KIND[type_]
-  if kind == nil then
-    error('node is not a link: ' .. type_)
-  end
-
+local function read_link_node(node, bufnr, kind)
   if kind == 'autolink' then
     local url =
       strip_autolink_angles(vim.treesitter.get_node_text(node, bufnr))
     return { kind = kind, url = url }
   end
 
+  if
+    kind ~= 'inline'
+    and kind ~= 'reference_full'
+    and kind ~= 'reference_collapsed'
+    and kind ~= 'reference_shortcut'
+  then
+    error('link pattern declared unknown kind: ' .. kind)
+  end
+
   local text_node = ts.child(node, 'link_text')
   if text_node == nil then
-    error(type_ .. ' is missing link_text')
+    error(kind .. ' link is missing link_text')
   end
   local text = vim.treesitter.get_node_text(text_node, bufnr)
 
@@ -165,8 +153,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_link(ctx)
-  return ts.find_inline_at_cursor(context.resolve(ctx), LINK_NODE_TYPES)
-    ~= nil
+  return ts.find_inline_at_cursor(context.resolve(ctx), 'link') ~= nil
 end
 
 --- Read the link containing the cursor. Errors if the cursor isn't on a
@@ -175,19 +162,25 @@ end
 ---@return gutenberg.link.Link, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = ts.find_inline_at_cursor(ctx, LINK_NODE_TYPES)
+  local node, metadata = ts.find_inline_at_cursor(ctx, 'link')
   if node == nil then
     error('cursor is not on a link')
   end
-  return read_link_node(node, ctx.bufnr), node
+  local kind = metadata and metadata.kind
+  if type(kind) ~= 'string' then
+    error(
+      'link pattern is missing `kind` metadata; see '
+        .. 'queries/markdown_inline/gutenberg.scm'
+    )
+  end
+  return read_link_node(node, ctx.bufnr, kind), node
 end
 
 --- Whether the cursor is inside a link reference definition.
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_definition(ctx)
-  return ts.find_at_cursor(context.resolve(ctx), 'link_reference_definition')
-    ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'link_definition') ~= nil
 end
 
 --- Read the link reference definition containing the cursor. Errors if the
@@ -196,7 +189,7 @@ end
 ---@return gutenberg.link.Definition, TSNode
 function M.read_definition(ctx)
   ctx = context.resolve(ctx)
-  local node = ts.find_at_cursor(ctx, 'link_reference_definition')
+  local node = ts.find_at_cursor(ctx, 'link_definition')
   if node == nil then
     error('cursor is not on a link reference definition')
   end
@@ -211,11 +204,7 @@ function M.definitions(ctx)
   ctx = context.resolve(ctx)
   ---@type table<string, gutenberg.link.Definition>
   local defs = {}
-  local root = ts.root(ctx.bufnr)
-  if root == nil then
-    return defs
-  end
-  for _, node in ipairs(ts.collect(root, 'link_reference_definition')) do
+  for _, node in ipairs(ts.collect(ctx.bufnr, 'link_definition')) do
     local def = read_definition_node(node, ctx.bufnr)
     defs[normalize_label(def.label)] = def
   end

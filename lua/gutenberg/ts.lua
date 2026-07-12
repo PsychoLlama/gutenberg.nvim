@@ -1,5 +1,7 @@
---- Treesitter plumbing shared by the feature modules. Everything here
---- deals in raw `TSNode`s; the feature modules translate nodes to and
+--- Treesitter plumbing shared by the feature modules. Node recognition is
+--- declared in the `queries/{markdown,markdown_inline}/gutenberg.scm`
+--- runtime query files; the helpers here resolve captures from those
+--- queries to raw `TSNode`s. The feature modules translate nodes to and
 --- from their value types. Internal — not part of the public API.
 
 ---@class gutenberg.ts
@@ -16,18 +18,58 @@ local function as_set(types)
   return types
 end
 
---- Nearest ancestor of `node` (including itself) whose type is in `types`.
----@param node TSNode?
----@param types table<string, true>
----@return TSNode?
-local function matching_ancestor(node, types)
-  while node ~= nil do
-    if types[node:type()] then
-      return node
-    end
-    node = node:parent()
+--- Parsed `gutenberg` query for `lang`. Errors when no
+--- `queries/<lang>/gutenberg.scm` exists on 'runtimepath' — that's a
+--- broken install, not a recoverable state. Neovim caches the parse.
+---@param lang string
+---@return vim.treesitter.Query
+local function get_query(lang)
+  local query = vim.treesitter.query.get(lang, 'gutenberg')
+  if query == nil then
+    error('queries/' .. lang .. '/gutenberg.scm not found on runtimepath')
   end
-  return nil
+  return query
+end
+
+--- Numeric id of `capture` in `query`. Errors on unknown captures so a
+--- user query that replaces ours (instead of `;; extends`-ing it) and
+--- drops a capture fails loudly instead of silently disabling a module.
+---@param query vim.treesitter.Query
+---@param capture string
+---@return integer
+local function capture_id(query, capture)
+  for id, name in ipairs(query.captures) do
+    if name == capture then
+      return id
+    end
+  end
+  error('gutenberg query has no @' .. capture .. ' capture')
+end
+
+--- Innermost node captured as `id` whose range contains (row, col), with
+--- the matching pattern's `#set!` metadata. Captured nodes containing a
+--- common point always nest, so "innermost" is the node contained by
+--- every other candidate.
+---@param query vim.treesitter.Query
+---@param id integer
+---@param root TSNode
+---@param bufnr integer
+---@param row integer
+---@param col integer
+---@return TSNode?, vim.treesitter.query.TSMetadata?
+local function capture_at(query, id, root, bufnr, row, col)
+  ---@type TSNode?, vim.treesitter.query.TSMetadata?
+  local best, best_metadata
+  for cid, node, metadata in query:iter_captures(root, bufnr, row, row + 1) do
+    if cid == id and vim.treesitter.is_in_node_range(node, row, col) then
+      if
+        best == nil or vim.treesitter.node_contains(best, { node:range() })
+      then
+        best, best_metadata = node, metadata
+      end
+    end
+  end
+  return best, best_metadata
 end
 
 --- Root of the buffer's markdown block tree, or nil when no markdown
@@ -42,27 +84,26 @@ function M.root(bufnr)
   return parser:parse()[1]:root()
 end
 
---- Find the nearest block node matching `types` at the cursor. The cursor
---- counts as "on" a block anywhere on the block's first row — including
---- the leading whitespace, which treesitter resolves to an enclosing node
---- (parent block, section, or document) rather than the block itself. When
---- the initial probe misses or lands on a block starting above the cursor
---- row, retry from the first non-blank column of the cursor row and prefer
---- that match.
+--- Find the innermost block node captured as `capture` (in the markdown
+--- query) at the cursor. The cursor counts as "on" a block anywhere on the
+--- block's first row — including the leading whitespace, which sits
+--- outside the block's range. When the direct probe misses or resolves to
+--- a block starting above the cursor row, retry from the first non-blank
+--- column of the cursor row and prefer that match.
 ---@param ctx gutenberg.Context
----@param types gutenberg.ts.Types
+---@param capture string
 ---@return TSNode?
-function M.find_at_cursor(ctx, types)
+function M.find_at_cursor(ctx, capture)
   local root = M.root(ctx.bufnr)
   if root == nil then
     return nil
   end
-  local set = as_set(types)
+  local query = get_query('markdown')
+  local id = capture_id(query, capture)
   local row = ctx.cursor[1] - 1
   local col = ctx.cursor[2]
 
-  local found =
-    matching_ancestor(root:descendant_for_range(row, col, row, col), set)
+  local found = capture_at(query, id, root, ctx.bufnr, row, col)
   if found ~= nil then
     local start_row = found:range()
     if start_row == row then
@@ -76,63 +117,60 @@ function M.find_at_cursor(ctx, types)
   if probe_col == nil or probe_col - 1 == col then
     return found
   end
-  local retry = matching_ancestor(
-    root:descendant_for_range(row, probe_col - 1, row, probe_col - 1),
-    set
-  )
+  local retry = capture_at(query, id, root, ctx.bufnr, row, probe_col - 1)
   return retry or found
 end
 
---- Find the nearest inline node matching `types` at the cursor, searching
---- the injected `markdown_inline` trees. Inline constructs only span real
---- text, so unlike `find_at_cursor` there is no indent snapping.
+--- Find the innermost inline node captured as `capture` (in the
+--- markdown_inline query) at the cursor, along with the matching pattern's
+--- `#set!` metadata, searching the injected `markdown_inline` trees.
+--- Inline constructs only span real text, so unlike `find_at_cursor` there
+--- is no indent snapping.
 ---@param ctx gutenberg.Context
----@param types gutenberg.ts.Types
----@return TSNode?
-function M.find_inline_at_cursor(ctx, types)
+---@param capture string
+---@return TSNode?, vim.treesitter.query.TSMetadata?
+function M.find_inline_at_cursor(ctx, capture)
   local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
   if parser == nil then
     return nil
   end
   parser:parse(true)
 
-  local set = as_set(types)
+  local query = get_query('markdown_inline')
+  local id = capture_id(query, capture)
   local row = ctx.cursor[1] - 1
   local col = ctx.cursor[2]
-  ---@type TSNode?
-  local found
+  ---@type TSNode?, vim.treesitter.query.TSMetadata?
+  local found, metadata
   parser:for_each_tree(function(tree, lt)
     if found ~= nil or lt:lang() ~= 'markdown_inline' then
       return
     end
-    found = matching_ancestor(
-      tree:root():descendant_for_range(row, col, row, col),
-      set
-    )
+    found, metadata = capture_at(query, id, tree:root(), ctx.bufnr, row, col)
   end)
-  return found
+  return found, metadata
 end
 
---- Every node under `node` whose type is in `types`, in document order.
---- Does not descend into matched nodes.
----@param node TSNode
----@param types gutenberg.ts.Types
+--- Every node captured as `capture` in the buffer's markdown block tree,
+--- in document order. Returns an empty list when no markdown parser is
+--- available.
+---@param bufnr integer
+---@param capture string
 ---@return TSNode[]
-function M.collect(node, types)
-  local set = as_set(types)
+function M.collect(bufnr, capture)
+  local root = M.root(bufnr)
+  if root == nil then
+    return {}
+  end
+  local query = get_query('markdown')
+  local id = capture_id(query, capture)
   ---@type TSNode[]
   local results = {}
-  ---@param n TSNode
-  local function visit(n)
-    if set[n:type()] then
-      table.insert(results, n)
-      return
-    end
-    for child in n:iter_children() do
-      visit(child)
+  for cid, node in query:iter_captures(root, bufnr) do
+    if cid == id then
+      table.insert(results, node)
     end
   end
-  visit(node)
   return results
 end
 

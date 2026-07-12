@@ -52,6 +52,7 @@
               fileset = lib.fileset.difference (lib.fileset.unions [
                 ./lua
                 ./doc
+                ./queries
               ]) (lib.fileset.unions (testDirsUnder ./lua ++ testDirsUnder ./doc));
             };
           };

@@ -34,6 +34,33 @@ KEYBINDINGS                                              *gutenberg-keybindings*
 RECIPES                                                      *gutenberg-recipes*
 
 ==============================================================================
+QUERIES                                                      *gutenberg-queries*
+
+The nodes each module recognizes are declared in |treesitter-query| files
+shipped with the plugin: >
+  queries/markdown/gutenberg.scm          block constructs
+  queries/markdown_inline/gutenberg.scm   inline constructs
+<
+Each capture names a construct: `@heading`, `@code_block`, `@list_item`,
+`@table`, `@link_definition`, and (inline) `@link`. To teach a module
+additional node types, place an extending query on your 'runtimepath': >query
+  ;; extends
+
+  (setext_heading) @heading
+<
+in `~/.config/nvim/queries/markdown/gutenberg.scm`. Recognition is
+extensible this way; decoding is not — `read` still only understands the
+built-in node shapes, so probes like `is_heading` accept extended nodes
+while `read` may error on them.
+
+Inline `@link` patterns must also declare which |gutenberg.link.Kind| the
+node decodes as: >query
+  ;; extends
+
+  ((email_autolink) @link
+    (#set! kind "autolink"))
+<
+==============================================================================
 API                                                              *gutenberg-api*
 
 ------------------------------------------------------------------------------
@@ -357,6 +384,7 @@ Parse and edit markdown links. Distinguishes inline links, reference links
 (full, collapsed, shortcut), and URI autolinks. Images are not links and are
 skipped.
 
+                                                           *gutenberg.link.Kind*
 `gutenberg.link.Kind` is one of:
     `'inline'`              `[text](url)` (with optional title)
     `'reference_full'`      `[text][label]`

@@ -55,7 +55,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_heading(ctx)
-  return ts.find_at_cursor(context.resolve(ctx), 'atx_heading') ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'heading') ~= nil
 end
 
 --- Read the heading containing the cursor. Errors if the cursor isn't on an
@@ -65,7 +65,7 @@ end
 ---@return gutenberg.heading.Heading, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = ts.find_at_cursor(ctx, 'atx_heading')
+  local node = ts.find_at_cursor(ctx, 'heading')
   if node == nil then
     error('cursor is not on a heading')
   end
@@ -158,14 +158,9 @@ end
 ---@return { heading: gutenberg.heading.Heading, node: TSNode }[]
 function M.list(ctx)
   ctx = context.resolve(ctx)
-  local root = ts.root(ctx.bufnr)
-  if root == nil then
-    return {}
-  end
-
   ---@type { heading: gutenberg.heading.Heading, node: TSNode }[]
   local results = {}
-  for _, node in ipairs(ts.collect(root, 'atx_heading')) do
+  for _, node in ipairs(ts.collect(ctx.bufnr, 'heading')) do
     local heading = decode(node, ctx.bufnr)
     if heading ~= nil then
       table.insert(results, { heading = heading, node = node })

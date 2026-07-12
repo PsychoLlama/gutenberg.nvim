@@ -16,7 +16,7 @@ local M = {}
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_table(ctx)
-  return ts.find_at_cursor(context.resolve(ctx), 'pipe_table') ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'table') ~= nil
 end
 
 ---@param node TSNode
@@ -63,7 +63,7 @@ end
 ---@return gutenberg.table.Table, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = ts.find_at_cursor(ctx, 'pipe_table')
+  local node = ts.find_at_cursor(ctx, 'table')
   if node == nil then
     error('cursor is not on a pipe table')
   end

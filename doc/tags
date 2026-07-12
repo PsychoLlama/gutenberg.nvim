@@ -2,6 +2,7 @@ gutenberg	gutenberg.txt	/*gutenberg*
 gutenberg-api	gutenberg.txt	/*gutenberg-api*
 gutenberg-keybindings	gutenberg.txt	/*gutenberg-keybindings*
 gutenberg-overview	gutenberg.txt	/*gutenberg-overview*
+gutenberg-queries	gutenberg.txt	/*gutenberg-queries*
 gutenberg-recipes	gutenberg.txt	/*gutenberg-recipes*
 gutenberg.code_block	gutenberg.txt	/*gutenberg.code_block*
 gutenberg.code_block.create()	gutenberg.txt	/*gutenberg.code_block.create()*
@@ -32,6 +33,7 @@ gutenberg.heading.set_level	gutenberg.txt	/*gutenberg.heading.set_level*
 gutenberg.heading.set_text	gutenberg.txt	/*gutenberg.heading.set_text*
 gutenberg.link	gutenberg.txt	/*gutenberg.link*
 gutenberg.link-accessors	gutenberg.txt	/*gutenberg.link-accessors*
+gutenberg.link.Kind	gutenberg.txt	/*gutenberg.link.Kind*
 gutenberg.link.create()	gutenberg.txt	/*gutenberg.link.create()*
 gutenberg.link.definitions()	gutenberg.txt	/*gutenberg.link.definitions()*
 gutenberg.link.is_definition()	gutenberg.txt	/*gutenberg.link.is_definition()*

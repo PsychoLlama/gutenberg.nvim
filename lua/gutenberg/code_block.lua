@@ -42,7 +42,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_code_block(ctx)
-  return ts.find_at_cursor(context.resolve(ctx), 'fenced_code_block') ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'code_block') ~= nil
 end
 
 --- Read the fenced code block containing the cursor. Errors if the cursor
@@ -52,7 +52,7 @@ end
 ---@return gutenberg.code_block.CodeBlock, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = ts.find_at_cursor(ctx, 'fenced_code_block')
+  local node = ts.find_at_cursor(ctx, 'code_block')
   if node == nil then
     error('cursor is not on a fenced code block')
   end
