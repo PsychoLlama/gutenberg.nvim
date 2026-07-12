@@ -29,7 +29,7 @@ Or, using the sugar tier that composes that loop for you:
 <
 Where to go next:
 
-  New here?             `:lua require('gutenberg').tutor()`  |gutenberg.tutor|
+  New here?             `:lua require('gutenberg').tour()`   |gutenberg.tour|
   Bind some keymaps     |gutenberg-recommended-config|
   Learn the shape       |gutenberg-design|, |gutenberg-recipes|
   Full reference        |gutenberg-api|
@@ -96,16 +96,16 @@ Pass `{ bufnr = ... }` to drive edits in background buffers, or a full
 `{ bufnr, cursor }` for fully programmatic rewrites.
 
 ==============================================================================
-TUTOR                                                          *gutenberg.tutor*
+TOUR                                                            *gutenberg.tour*
 
 An interactive tour of the plugin, in the spirit of |:Tutor|:
 >lua
-  require('gutenberg').tutor()
+  require('gutenberg').tour()
 <
-This opens a scratch copy of the lessons — edit anything, nothing is
-saved — with the keymaps from |gutenberg-recommended-config| bound to
-that buffer alone. Reopening replaces the buffer with a fresh copy.
-Returns the tutor buffer number.
+This opens a scratch copy of the tour document — edit anything, nothing
+is saved — with the keymaps from |gutenberg-recommended-config| bound
+to that buffer alone. Reopening replaces the buffer with a fresh copy.
+Returns the tour buffer number.
 
 ==============================================================================
 RECIPES                                                      *gutenberg-recipes*

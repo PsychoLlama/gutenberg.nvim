@@ -1,16 +1,16 @@
---- `gutenberg.tutor()` — an interactive tour of the plugin, in the
---- spirit of `:Tutor`. Opens the shipped tutor document in a listed
+--- `gutenberg.tour()` — an interactive tour of the plugin, in the
+--- spirit of `:Tutor`. Opens the shipped tour document in a listed
 --- scratch buffer and binds the recommended keymaps (see
 --- `:h gutenberg-recommended-config`) to that buffer alone, so the
 --- lessons work even in a bare config.
 
-local BUFFER_NAME = 'gutenberg://tutor'
+local BUFFER_NAME = 'gutenberg://tour'
 
----@class gutenberg.tutor
+---@class gutenberg.tour
 ---@overload fun(): integer
 local M = {}
 
---- The tutor buffer is plugin-owned UI — the one place gutenberg is
+--- The tour buffer is plugin-owned UI — the one place gutenberg is
 --- its own keymap edge, so errors surface through vim.notify here
 --- instead of propagating to a caller.
 ---@param fn fun()
@@ -143,15 +143,15 @@ local function apply_keymaps(bufnr)
   end, 'set link text')
 end
 
---- Open the tutor in the current window. Any previous tutor buffer is
---- replaced with a fresh copy of the lessons. Returns the tutor
+--- Open the tour in the current window. Any previous tour buffer is
+--- replaced with a fresh copy of the lessons. Returns the tour
 --- buffer number.
 ---@return integer
 function M.open()
   local path =
-    vim.api.nvim_get_runtime_file('doc/gutenberg-tutor.md', false)[1]
+    vim.api.nvim_get_runtime_file('doc/gutenberg-tour.md', false)[1]
   if path == nil then
-    error("gutenberg: doc/gutenberg-tutor.md not found on 'runtimepath'", 0)
+    error("gutenberg: doc/gutenberg-tour.md not found on 'runtimepath'", 0)
   end
 
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do

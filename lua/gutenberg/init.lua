@@ -6,7 +6,7 @@
 ---@field link gutenberg.link
 ---@field list gutenberg.list
 ---@field table gutenberg.table
----@field tutor gutenberg.tutor
+---@field tour gutenberg.tour
 local M = {}
 
 ---@param opts? gutenberg.Config

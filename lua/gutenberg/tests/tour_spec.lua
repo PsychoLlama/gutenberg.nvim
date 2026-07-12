@@ -1,8 +1,8 @@
-local tutor = require('gutenberg.tutor')
+local tour = require('gutenberg.tour')
 
-local BUFFER_NAME = 'gutenberg://tutor'
+local BUFFER_NAME = 'gutenberg://tour'
 
-local function close_tutor()
+local function close_tour()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_get_name(bufnr) == BUFFER_NAME then
       vim.api.nvim_buf_delete(bufnr, { force = true })
@@ -10,26 +10,26 @@ local function close_tutor()
   end
 end
 
-describe('gutenberg.tutor', function()
-  after_each(close_tutor)
+describe('gutenberg.tour', function()
+  after_each(close_tour)
 
   it('opens a markdown scratch buffer with the lessons', function()
-    local bufnr = tutor.open()
+    local bufnr = tour.open()
     assert.equal(BUFFER_NAME, vim.api.nvim_buf_get_name(bufnr))
     assert.equal('markdown', vim.bo[bufnr].filetype)
     assert.equal('nofile', vim.bo[bufnr].buftype)
 
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, 5, false)
-    assert.truthy(table.concat(lines, '\n'):find('Gutenberg Tutor', 1, true))
+    assert.truthy(table.concat(lines, '\n'):find('Gutenberg Tour', 1, true))
   end)
 
-  it('is callable as gutenberg.tutor()', function()
-    local bufnr = require('gutenberg').tutor()
+  it('is callable as gutenberg.tour()', function()
+    local bufnr = require('gutenberg').tour()
     assert.equal(BUFFER_NAME, vim.api.nvim_buf_get_name(bufnr))
   end)
 
-  it('binds the tutor keymaps to the tutor buffer only', function()
-    local bufnr = tutor.open()
+  it('binds the tour keymaps to the tour buffer only', function()
+    local bufnr = tour.open()
 
     ---@param target integer
     ---@return table<string, true>
@@ -50,9 +50,9 @@ describe('gutenberg.tutor', function()
     vim.api.nvim_buf_delete(other, { force = true })
   end)
 
-  it('replaces a previous tutor buffer on reopen', function()
-    local first = tutor.open()
-    local second = tutor.open()
+  it('replaces a previous tour buffer on reopen', function()
+    local first = tour.open()
+    local second = tour.open()
     assert.is_false(vim.api.nvim_buf_is_valid(first))
     assert.is_true(vim.api.nvim_buf_is_valid(second))
     assert.equal(BUFFER_NAME, vim.api.nvim_buf_get_name(second))

@@ -90,4 +90,4 @@ gutenberg.table.replace()	gutenberg.txt	/*gutenberg.table.replace()*
 gutenberg.table.set_alignment()	gutenberg.txt	/*gutenberg.table.set_alignment()*
 gutenberg.table.set_cell()	gutenberg.txt	/*gutenberg.table.set_cell()*
 gutenberg.table.update()	gutenberg.txt	/*gutenberg.table.update()*
-gutenberg.tutor	gutenberg.txt	/*gutenberg.tutor*
+gutenberg.tour	gutenberg.txt	/*gutenberg.tour*

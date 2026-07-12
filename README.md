@@ -39,12 +39,11 @@ assumes the current buffer. Submodules load lazily;
 
 ## Getting Started
 
-Take the interactive tutor for a spin — it opens a scratch buffer with
-keybindings pre-wired so you can try every feature without configuring
-anything:
+Take the interactive tour — it opens a scratch buffer with keybindings
+pre-wired so you can try every feature without configuring anything:
 
 ```viml
-:lua require('gutenberg').tutor()
+:lua require('gutenberg').tour()
 ```
 
 Then copy the recommended keymaps into your config and adjust to taste:

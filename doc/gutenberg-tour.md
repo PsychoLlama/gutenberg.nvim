@@ -1,11 +1,11 @@
-# The Gutenberg Tutor
+# The Gutenberg Tour
 
 Welcome! This is a hands-on tour of `gutenberg.nvim`. You are reading
-a scratch copy of the tutor — edit anything, break everything; nothing
+a scratch copy of the tour — edit anything, break everything; nothing
 is saved. Undo mistakes with `u`, leave with `:q`, and reopen a fresh
 copy any time with:
 
-    :lua require('gutenberg').tutor()
+    :lua require('gutenberg').tour()
 
 The keybindings below are defined for this buffer only. `<leader>`
 means your leader key — backslash unless you've configured one. The
