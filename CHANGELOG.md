@@ -48,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `:checkhealth gutenberg` verifies the runtime dependencies: a
+  supported Neovim, the `markdown` / `markdown_inline` treesitter
+  parsers, and the gutenberg query files — including that they compile
+  against the installed grammar version and still define every
+  required capture.
 - A sugar tier built on the public primitives. Every construct module
   gains `update(fn, ctx?)`, composing the gate → read → mutate →
   replace loop into one call: it reads the construct at the cursor,
