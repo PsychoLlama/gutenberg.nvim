@@ -180,25 +180,4 @@ function M.set_content(block, lines)
   block.content = lines
 end
 
---- Read the conventional language: the first whitespace-delimited token of
---- the info string. Returns `''` when the info string is empty.
----@param block gutenberg.code_block.CodeBlock
----@return string
-function M.get_language(block)
-  return block.info_string:match('^(%S+)') or ''
-end
-
---- Replace the leading-language portion of the info string, preserving any
---- trailing attributes after the first whitespace.
----@param block gutenberg.code_block.CodeBlock
----@param language string
-function M.set_language(block, language)
-  local rest = block.info_string:match('^%S*(%s.*)$')
-  if rest == nil then
-    block.info_string = language
-  else
-    block.info_string = language .. rest
-  end
-end
-
 return M

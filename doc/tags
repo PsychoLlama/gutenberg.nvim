@@ -10,14 +10,12 @@ gutenberg-recommended-config	gutenberg.txt	/*gutenberg-recommended-config*
 gutenberg.api.code_block.create()	gutenberg.txt	/*gutenberg.api.code_block.create()*
 gutenberg.api.code_block.get_content()	gutenberg.txt	/*gutenberg.api.code_block.get_content()*
 gutenberg.api.code_block.get_info_string()	gutenberg.txt	/*gutenberg.api.code_block.get_info_string()*
-gutenberg.api.code_block.get_language()	gutenberg.txt	/*gutenberg.api.code_block.get_language()*
 gutenberg.api.code_block.is_code_block()	gutenberg.txt	/*gutenberg.api.code_block.is_code_block()*
 gutenberg.api.code_block.read()	gutenberg.txt	/*gutenberg.api.code_block.read()*
 gutenberg.api.code_block.render()	gutenberg.txt	/*gutenberg.api.code_block.render()*
 gutenberg.api.code_block.replace()	gutenberg.txt	/*gutenberg.api.code_block.replace()*
 gutenberg.api.code_block.set_content()	gutenberg.txt	/*gutenberg.api.code_block.set_content()*
 gutenberg.api.code_block.set_info_string()	gutenberg.txt	/*gutenberg.api.code_block.set_info_string()*
-gutenberg.api.code_block.set_language()	gutenberg.txt	/*gutenberg.api.code_block.set_language()*
 gutenberg.api.heading.create()	gutenberg.txt	/*gutenberg.api.heading.create()*
 gutenberg.api.heading.find_next()	gutenberg.txt	/*gutenberg.api.heading.find_next()*
 gutenberg.api.heading.find_parent()	gutenberg.txt	/*gutenberg.api.heading.find_parent()*

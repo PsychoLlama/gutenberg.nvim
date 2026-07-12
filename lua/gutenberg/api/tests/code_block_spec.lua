@@ -324,10 +324,10 @@ describe('gutenberg.api.code_block', function()
       end)
     end)
 
-    it('changes the language', function()
+    it('changes the info string', function()
       with_buffer({ '```lua', "print('hi')", '```' }, { 1, 0 }, function(ctx)
         local block, node = code_block.read(ctx)
-        code_block.set_language(block, 'python')
+        code_block.set_info_string(block, 'python')
         code_block.replace(node, { block }, ctx)
         assert.same(
           { '```python', "print('hi')", '```' },
@@ -421,52 +421,6 @@ describe('gutenberg.api.code_block', function()
         )
       end
     )
-  end)
-
-  describe('set_language', function()
-    it(
-      'replaces the leading token only, preserving trailing attributes',
-      function()
-        local block = code_block.create({ info_string = 'lua title="x"' })
-        code_block.set_language(block, 'python')
-        assert.equal('python title="x"', block.info_string)
-      end
-    )
-
-    it(
-      'replaces the entire info string when there are no attributes',
-      function()
-        local block = code_block.create({ info_string = 'lua' })
-        code_block.set_language(block, 'python')
-        assert.equal('python', block.info_string)
-      end
-    )
-
-    it('sets the info string when previously empty', function()
-      local block = code_block.create({ info_string = '' })
-      code_block.set_language(block, 'lua')
-      assert.equal('lua', block.info_string)
-    end)
-  end)
-
-  describe('get_language', function()
-    it('returns the first whitespace-delimited token', function()
-      local block = code_block.create({ info_string = 'lua title="x"' })
-      assert.equal('lua', code_block.get_language(block))
-    end)
-
-    it(
-      'returns the entire info string when there is no whitespace',
-      function()
-        local block = code_block.create({ info_string = 'python' })
-        assert.equal('python', code_block.get_language(block))
-      end
-    )
-
-    it('returns an empty string when the info string is empty', function()
-      local block = code_block.create({ info_string = '' })
-      assert.equal('', code_block.get_language(block))
-    end)
   end)
 
   describe('get_info_string / set_info_string', function()

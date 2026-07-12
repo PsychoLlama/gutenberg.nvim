@@ -76,23 +76,10 @@ and realigns the cells in one edit:
 
 ---
 
-## Code Blocks
-
-`<leader>me` edits the language of the fenced code block under the
-cursor, rewriting the opening fence in place:
-
-```
-def greet(name):
-    return f"hello, {name}"
-```
-
----
-
 ## Links
 
-The same `<leader>me` binding edits the URL of the link under the
-cursor — one key, dispatched by context. `<leader>mE` edits the link
-text:
+`<leader>me` edits the URL of the link under the cursor. `<leader>mE`
+edits the link text:
 
 [an editor](https://example.com)
 

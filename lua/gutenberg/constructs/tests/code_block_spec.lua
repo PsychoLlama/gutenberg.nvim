@@ -8,7 +8,7 @@ describe('gutenberg.code_block', function()
     it('writes the mutated block back in one update', function()
       with_buffer({ '```', 'code', '```' }, { 2, 0 }, function(ctx)
         code_block.update(function(block)
-          api.set_language(block, 'lua')
+          api.set_info_string(block, 'lua')
         end, ctx)
         assert.same(
           { '```lua', 'code', '```' },

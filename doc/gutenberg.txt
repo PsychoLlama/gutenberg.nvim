@@ -161,14 +161,12 @@ MDX buffers and surfaces failures as notifications:
     <leader>m>    demote heading / indent list item
     <leader>mx    toggle checkbox        <leader>mo    toggle ordered list
     <leader>mf    format table           <leader>ma    cycle column alignment
-    <leader>me    edit link URL / code block language
-    <leader>mE    edit link text
+    <leader>me    edit link URL          <leader>mE    edit link text
 
 Semantically related actions share one binding and dispatch on what's
 under the cursor — the `is_*` probes make the gate a two-line branch.
 `<leader>m<` moves the construct up the hierarchy whether that means
-promoting a heading or dedenting a list item; `<leader>me` edits the
-salient attribute of whatever the cursor is on.
+promoting a heading or dedenting a list item.
 >lua
   vim.api.nvim_create_autocmd('FileType', {
     pattern = { 'markdown', 'markdown.mdx', 'mdx' },
@@ -238,42 +236,23 @@ salient attribute of whatever the cursor is on.
       map('<leader>mf', gutenberg.table.format, 'format table')
       map('<leader>ma', gutenberg.table.cycle_alignment, 'cycle alignment')
 
-      -- Attributes: edit the salient field of the construct at the cursor.
+      -- Links
       map('<leader>me', function()
-        if gutenberg.api.link.is_link() then
-          local link = gutenberg.api.link.read()
-          vim.ui.input({
-            prompt = 'URL: ',
-            default = gutenberg.api.link.get_url(link) or '',
-          }, function(input)
-            if input == nil then
-              return
-            end
-            notify_errors(function()
-              gutenberg.link.update(function(l)
-                gutenberg.api.link.set_url(l, input)
-              end)
+        local link = gutenberg.api.link.read()
+        vim.ui.input({
+          prompt = 'URL: ',
+          default = gutenberg.api.link.get_url(link) or '',
+        }, function(input)
+          if input == nil then
+            return
+          end
+          notify_errors(function()
+            gutenberg.link.update(function(l)
+              gutenberg.api.link.set_url(l, input)
             end)
           end)
-        elseif gutenberg.api.code_block.is_code_block() then
-          local block = gutenberg.api.code_block.read()
-          vim.ui.input({
-            prompt = 'Language: ',
-            default = gutenberg.api.code_block.get_language(block),
-          }, function(input)
-            if input == nil then
-              return
-            end
-            notify_errors(function()
-              gutenberg.code_block.update(function(b)
-                gutenberg.api.code_block.set_language(b, input)
-              end)
-            end)
-          end)
-        else
-          error('gutenberg: no link or code block under the cursor', 0)
-        end
-      end, 'edit link URL / code block language')
+        end)
+      end, 'edit link URL')
 
       map('<leader>mE', function()
         local link = gutenberg.api.link.read()
@@ -649,8 +628,7 @@ A `gutenberg.code_block.CodeBlock` is a plain table: >lua
     }
 <
 The `info_string` is stored as-is so callers can carry attributes (for
-example `{lua title="x"}`) through a round trip. Use `get_language` /
-`set_language` to manipulate just the leading token.
+example `{lua title="x"}`) through a round trip.
 
 is_code_block({ctx})                *gutenberg.api.code_block.is_code_block()*
     Whether the cursor is inside a fenced code block (opening fence,
@@ -692,16 +670,6 @@ set_info_string({block}, {info_string})
 get_content({block})                  *gutenberg.api.code_block.get_content()*
 set_content({block}, {lines})         *gutenberg.api.code_block.set_content()*
     Read or replace the block's content lines.
-
-get_language({block})                *gutenberg.api.code_block.get_language()*
-    The first whitespace-delimited token of the info string. Returns
-    `''` when the info string is empty.
-
-set_language({block}, {language})    *gutenberg.api.code_block.set_language()*
-    Replace the leading-language portion of the info string,
-    preserving any trailing attributes after the first whitespace:
-    `set_language(block, 'python')` on `'lua title="x"'` yields
-    `'python title="x"'`.
 
 ------------------------------------------------------------------------------
 LINK                                                          *gutenberg.link*
