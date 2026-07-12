@@ -1,7 +1,7 @@
 # Developing
 
 - `just check` must pass before committing.
-- Annotate all functions, fields, and module APIs with LuaCATS types.
+- Everything must be fully typed.
 - Code comments explain _why_, not _what_. Skip them when the code is self-evident.
 
 ## Architecture
@@ -14,10 +14,12 @@
 ## API Design
 
 - Lean powerful, not simple for its own sake. Favor composable primitives over convenience methods.
-- No `toggle`-style helpers. Setters take an explicit value, paired with getters for reading state.
+- APIs should be explicit. For example: instead of `toggle_checkbox`, have `set_checked` and `is_checked`.
+  - Only add sugar APIs if they can build on lower-level public primitives, and only if they carry their weight.
 - Don't assume the cursor or current buffer. Accept buffer + position (or other targets) as context.
 - Multi-step operations should produce a single buffer update. Keep transforms in-memory and write once at the end.
 - Parse with Treesitter, never by hand. It doesn't serialize—apply edits via `nvim_buf_set_text` over node ranges.
+- Only pay for what you use. Defer work until a module is imported or a function is called. Cache where appropriate.
 
 ## Docs
 
