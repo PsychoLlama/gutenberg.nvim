@@ -32,22 +32,65 @@ describe('gutenberg.tour', function()
     local bufnr = tour.open()
 
     ---@param target integer
+    ---@param mode string
     ---@return table<string, true>
-    local function buffer_maps(target)
+    local function buffer_maps(target, mode)
       ---@type table<string, true>
       local lhs = {}
-      for _, m in ipairs(vim.api.nvim_buf_get_keymap(target, 'n')) do
+      for _, m in ipairs(vim.api.nvim_buf_get_keymap(target, mode)) do
         lhs[m.lhs] = true
       end
       return lhs
     end
 
-    assert.is_true(buffer_maps(bufnr)[']h'] == true)
-    assert.is_true(buffer_maps(bufnr)['[h'] == true)
+    assert.is_true(buffer_maps(bufnr, 'n')[']h'] == true)
+    assert.is_true(buffer_maps(bufnr, 'n')['[h'] == true)
 
     local other = vim.api.nvim_create_buf(false, true)
-    assert.is_nil(buffer_maps(other)[']h'])
+    assert.is_nil(buffer_maps(other, 'n')[']h'])
     vim.api.nvim_buf_delete(other, { force = true })
+  end)
+
+  it('binds motions, edits, and textobjects in the right modes', function()
+    local bufnr = tour.open()
+
+    ---@param mode string
+    ---@return table<string, true>
+    local function maps(mode)
+      ---@type table<string, true>
+      local lhs = {}
+      for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, mode)) do
+        -- get_keymap escapes a literal `<` as `<lt>`; undo that so
+        -- expectations read naturally.
+        lhs[m.lhs:gsub('<lt>', '<')] = true
+      end
+      return lhs
+    end
+
+    -- Motions land in normal, visual, and operator-pending modes.
+    for _, mode in ipairs({ 'n', 'x', 'o' }) do
+      for _, lhs in ipairs({ ']h', '[h', ']t', '[t', ']|', '[|' }) do
+        assert.is_true(maps(mode)[lhs] == true, mode .. ' ' .. lhs)
+      end
+    end
+
+    -- The inner-cell textobject is visual + operator-pending only.
+    assert.is_true(maps('x')['i|'] == true)
+    assert.is_true(maps('o')['i|'] == true)
+    assert.is_nil(maps('n')['i|'])
+
+    -- Edits bind normal + visual.
+    local leader = vim.g.mapleader or '\\'
+    for _, suffix in ipairs({ 'm<', 'm>', 'mx', 'mo', 'ml', 'mc' }) do
+      assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
+      assert.is_true(maps('x')[leader .. suffix] == true, 'x ' .. suffix)
+    end
+
+    -- Normal-mode-only binds.
+    for _, suffix in ipairs({ 'mf', 'ma', 'mt', 'mL' }) do
+      assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
+      assert.is_nil(maps('x')[leader .. suffix], 'x ' .. suffix)
+    end
   end)
 
   it('replaces a previous tour buffer on reopen', function()
