@@ -58,7 +58,7 @@ function M.read(ctx)
   end
 
   local opening, info, closing = find_parts(node)
-  local open_row = opening:range()
+  local open_row, _, _, open_end_col = opening:range()
   local close_row = closing:range()
 
   local opening_line = vim.api.nvim_buf_get_lines(
@@ -68,20 +68,16 @@ function M.read(ctx)
     false
   )[1] or ''
 
-  local fence_start, _, fence_char = opening_line:find('([`~])')
-  if fence_start == nil then
+  -- The delimiter node's range covers everything before the fence run —
+  -- leading indent, and container prefixes like `> ` — so split the two
+  -- apart; only the end column marks where the fence stops.
+  local indent, fence_run =
+    opening_line:sub(1, open_end_col):match('^(.-)([`~]+)$')
+  if fence_run == nil then
     error('fenced_code_block_delimiter has no fence character')
   end
-  local indent = opening_line:sub(1, fence_start - 1)
-
-  local fence_length = 0
-  for i = fence_start, #opening_line do
-    if opening_line:sub(i, i) == fence_char then
-      fence_length = fence_length + 1
-    else
-      break
-    end
-  end
+  local fence_char = fence_run:sub(1, 1)
+  local fence_length = #fence_run
 
   local info_string = ''
   if info ~= nil then
