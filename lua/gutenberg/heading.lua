@@ -4,6 +4,7 @@
 
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
+local ts = require('gutenberg.ts')
 
 ---@class gutenberg.heading
 local M = {}
@@ -16,27 +17,6 @@ local function marker_level(node)
     return nil
   end
   return tonumber(digit)
-end
-
---- Walk up from the cursor looking for an enclosing `atx_heading` node.
----@param ctx gutenberg.Context
----@return TSNode?
-local function find_atx_heading(ctx)
-  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
-  if parser == nil then
-    return nil
-  end
-  local tree = parser:parse()[1]
-  local row = ctx.cursor[1] - 1
-  local col = ctx.cursor[2]
-  local node = tree:root():descendant_for_range(row, col, row, col)
-  while node ~= nil do
-    if node:type() == 'atx_heading' then
-      return node
-    end
-    node = node:parent()
-  end
-  return nil
 end
 
 --- Decode an `atx_heading` node, or nil if the node is malformed.
@@ -71,33 +51,11 @@ local function decode(node, bufnr)
   return { level = level, text = text }
 end
 
---- Collect every `atx_heading` in a parsed tree, in document order.
----@param root TSNode
----@param bufnr integer
----@return { heading: gutenberg.heading.Heading, node: TSNode }[]
-local function collect_headings(root, bufnr)
-  ---@type { heading: gutenberg.heading.Heading, node: TSNode }[]
-  local results = {}
-  local function visit(node)
-    if node:type() == 'atx_heading' then
-      local heading = decode(node, bufnr)
-      if heading ~= nil then
-        table.insert(results, { heading = heading, node = node })
-      end
-    end
-    for child in node:iter_children() do
-      visit(child)
-    end
-  end
-  visit(root)
-  return results
-end
-
 --- Whether the cursor is on an ATX heading. Gate calls to `read` with this.
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_heading(ctx)
-  return find_atx_heading(context.resolve(ctx)) ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'atx_heading') ~= nil
 end
 
 --- Read the heading containing the cursor. Errors if the cursor isn't on an
@@ -107,7 +65,7 @@ end
 ---@return gutenberg.heading.Heading, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = find_atx_heading(ctx)
+  local node = ts.find_at_cursor(ctx, 'atx_heading')
   if node == nil then
     error('cursor is not on a heading')
   end
@@ -150,17 +108,8 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.replace(node, headings, ctx)
   ctx = context.resolve(ctx)
-  local sr, sc = node:range()
-
-  -- When the heading is nested in a container (e.g. block quote), columns
-  -- 0..sc-1 of the start row carry the container's prefix. Capture it and
-  -- prepend to every rewritten line so the container survives the edit.
-  local prefix = ''
-  if sc > 0 then
-    local first = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, sr + 1, false)[1]
-      or ''
-    prefix = first:sub(1, sc)
-  end
+  local sr = node:range()
+  local prefix = ts.container_prefix(node, ctx.bufnr)
 
   ---@type string[]
   local lines = {}
@@ -209,12 +158,20 @@ end
 ---@return { heading: gutenberg.heading.Heading, node: TSNode }[]
 function M.list(ctx)
   ctx = context.resolve(ctx)
-  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
-  if parser == nil then
+  local root = ts.root(ctx.bufnr)
+  if root == nil then
     return {}
   end
-  local tree = parser:parse()[1]
-  return collect_headings(tree:root(), ctx.bufnr)
+
+  ---@type { heading: gutenberg.heading.Heading, node: TSNode }[]
+  local results = {}
+  for _, node in ipairs(ts.collect(root, 'atx_heading')) do
+    local heading = decode(node, ctx.bufnr)
+    if heading ~= nil then
+      table.insert(results, { heading = heading, node = node })
+    end
+  end
+  return results
 end
 
 ---@param level integer

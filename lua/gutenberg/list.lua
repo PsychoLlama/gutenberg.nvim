@@ -6,65 +6,26 @@
 
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
+local ts = require('gutenberg.ts')
 
 ---@class gutenberg.list
 local M = {}
-
---- Walk from `node` toward the root looking for a `list_item`.
----@param node TSNode?
----@return TSNode?
-local function ancestor_list_item(node)
-  while node ~= nil do
-    if node:type() == 'list_item' then
-      return node
-    end
-    node = node:parent()
-  end
-  return nil
-end
-
---- Find the `list_item` at the cursor, or nil. The cursor counts as "on"
---- the item anywhere on its first row — including the leading whitespace
---- before the marker, which treesitter resolves to an enclosing node
---- (parent list_item, list, or document) rather than the item itself.
----@param ctx gutenberg.Context
----@return TSNode?
-local function find_list_item(ctx)
-  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
-  if parser == nil then
-    return nil
-  end
-  local tree = parser:parse()[1]
-  local row = ctx.cursor[1] - 1
-  local col = ctx.cursor[2]
-
-  local item =
-    ancestor_list_item(tree:root():descendant_for_range(row, col, row, col))
-  if item ~= nil and item:range() == row then
-    return item
-  end
-
-  -- Cursor is in the indent of a list_item (col < marker col). Treesitter
-  -- maps those columns to a parent node, not the item itself, so retry at
-  -- the first non-blank column on the cursor row.
-  local line = vim.api.nvim_buf_get_lines(ctx.bufnr, row, row + 1, false)[1]
-    or ''
-  local marker_col = line:find('%S')
-  if marker_col == nil or marker_col - 1 == col then
-    return item
-  end
-  local retry = ancestor_list_item(
-    tree:root():descendant_for_range(row, marker_col - 1, row, marker_col - 1)
-  )
-  return retry or item
-end
 
 --- Whether the cursor is on a list item. Gate calls to `read` with this.
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_list_item(ctx)
-  return find_list_item(context.resolve(ctx)) ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'list_item') ~= nil
 end
+
+---@type table<string, true>
+local MARKER_TYPES = {
+  list_marker_minus = true,
+  list_marker_plus = true,
+  list_marker_star = true,
+  list_marker_dot = true,
+  list_marker_parenthesis = true,
+}
 
 --- Decode a `list_item` node into an item struct. Errors if the node is
 --- missing a marker.
@@ -72,13 +33,7 @@ end
 ---@param bufnr integer
 ---@return gutenberg.list.Item
 local function decode_item(node, bufnr)
-  local marker_node
-  for child in node:iter_children() do
-    if child:type():sub(1, 12) == 'list_marker_' then
-      marker_node = child
-      break
-    end
-  end
+  local marker_node = ts.child(node, MARKER_TYPES)
   if marker_node == nil then
     error('list_item is missing a marker')
   end
@@ -109,7 +64,7 @@ end
 ---@param ctx gutenberg.Context
 ---@return TSNode?
 local function find_list(ctx)
-  local item = find_list_item(ctx)
+  local item = ts.find_at_cursor(ctx, 'list_item')
   if item == nil then
     return nil
   end
@@ -127,7 +82,7 @@ end
 ---@return gutenberg.list.Item, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = find_list_item(ctx)
+  local node = ts.find_at_cursor(ctx, 'list_item')
   if node == nil then
     error('cursor is not on a list item')
   end
@@ -217,8 +172,8 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.replace_list(list_node, entries, ctx)
   ctx = context.resolve(ctx)
-  local sr, _, er, ec = list_node:range()
-  local end_row = ec == 0 and er or er + 1
+  local sr = list_node:range()
+  local end_row = ts.end_row(list_node)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row, false)
 
   for _, entry in ipairs(entries) do
@@ -240,9 +195,8 @@ end
 ---@param bufnr integer
 ---@return integer sr, integer end_row
 local function content_rows(node, bufnr)
-  local sr, _, er, ec = node:range()
-  local last = ec == 0 and er - 1 or er
-  local lines = vim.api.nvim_buf_get_lines(bufnr, sr, last + 1, false)
+  local sr = node:range()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, sr, ts.end_row(node), false)
   for i = #lines, 1, -1 do
     if lines[i]:match('%S') ~= nil then
       return sr, sr + i - 1

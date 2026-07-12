@@ -14,6 +14,7 @@
 
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
+local ts = require('gutenberg.ts')
 
 ---@class gutenberg.link
 local M = {}
@@ -35,19 +36,6 @@ local NODE_TYPE_TO_KIND = {
   shortcut_link = 'reference_shortcut',
   uri_autolink = 'autolink',
 }
-
---- Find the first child of `node` whose type matches `type_`, or nil.
----@param node TSNode
----@param type_ string
----@return TSNode?
-local function find_child(node, type_)
-  for child in node:iter_children() do
-    if child:type() == type_ then
-      return child
-    end
-  end
-  return nil
-end
 
 --- Strip a single pair of matching surrounding delimiters from `text`.
 --- Markdown link titles use any of `"..."`, `'...'`, or `(...)`. Treesitter
@@ -96,80 +84,20 @@ local function strip_autolink_angles(text)
   return text
 end
 
---- Walk all parsed trees in `bufnr`. The callback is invoked once per tree.
----@param bufnr integer
----@param fn fun(tree: TSTree, lang: string)
-local function for_each_tree(bufnr, fn)
-  local parser = vim.treesitter.get_parser(bufnr, 'markdown')
-  if parser == nil then
-    return
-  end
-  parser:parse(true)
-  parser:for_each_tree(function(tree, lt)
-    fn(tree, lt:lang())
-  end)
-end
-
---- Find the nearest ancestor of any link kind at the cursor. Returns nil if
---- the cursor is not inside a link.
----@param ctx gutenberg.Context
----@return TSNode?
-local function find_link(ctx)
-  local row = ctx.cursor[1] - 1
-  local col = ctx.cursor[2]
-  ---@type TSNode?
-  local found
-  for_each_tree(ctx.bufnr, function(tree, lang)
-    if found ~= nil or lang ~= 'markdown_inline' then
-      return
-    end
-    local node = tree:root():descendant_for_range(row, col, row, col)
-    while node ~= nil do
-      if LINK_NODE_TYPES[node:type()] then
-        found = node
-        return
-      end
-      node = node:parent()
-    end
-  end)
-  return found
-end
-
---- Find the nearest `link_reference_definition` ancestor at the cursor.
----@param ctx gutenberg.Context
----@return TSNode?
-local function find_definition(ctx)
-  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
-  if parser == nil then
-    return nil
-  end
-  local tree = parser:parse()[1]
-  local row = ctx.cursor[1] - 1
-  local col = ctx.cursor[2]
-  local node = tree:root():descendant_for_range(row, col, row, col)
-  while node ~= nil do
-    if node:type() == 'link_reference_definition' then
-      return node
-    end
-    node = node:parent()
-  end
-  return nil
-end
-
 --- Read a `link_reference_definition` node into a Definition.
 ---@param node TSNode
 ---@param bufnr integer
 ---@return gutenberg.link.Definition
 local function read_definition_node(node, bufnr)
-  local label_node = find_child(node, 'link_label')
-  local dest_node = find_child(node, 'link_destination')
+  local label_node = ts.child(node, 'link_label')
+  local dest_node = ts.child(node, 'link_destination')
   if label_node == nil or dest_node == nil then
     error('link_reference_definition is missing required children')
   end
   local label =
     strip_label_brackets(vim.treesitter.get_node_text(label_node, bufnr))
   local url = vim.treesitter.get_node_text(dest_node, bufnr)
-  local title_node = find_child(node, 'link_title')
+  local title_node = ts.child(node, 'link_title')
   local title
   if title_node ~= nil then
     title =
@@ -195,20 +123,20 @@ local function read_link_node(node, bufnr)
     return { kind = kind, url = url }
   end
 
-  local text_node = find_child(node, 'link_text')
+  local text_node = ts.child(node, 'link_text')
   if text_node == nil then
     error(type_ .. ' is missing link_text')
   end
   local text = vim.treesitter.get_node_text(text_node, bufnr)
 
   if kind == 'inline' then
-    local dest_node = find_child(node, 'link_destination')
+    local dest_node = ts.child(node, 'link_destination')
     -- `[text]()` is legal markdown — destination may be absent.
     local url = ''
     if dest_node ~= nil then
       url = vim.treesitter.get_node_text(dest_node, bufnr)
     end
-    local title_node = find_child(node, 'link_title')
+    local title_node = ts.child(node, 'link_title')
     local title
     if title_node ~= nil then
       title = strip_title_delimiters(
@@ -219,7 +147,7 @@ local function read_link_node(node, bufnr)
   end
 
   if kind == 'reference_full' then
-    local label_node = find_child(node, 'link_label')
+    local label_node = ts.child(node, 'link_label')
     if label_node == nil then
       error('full_reference_link is missing link_label')
     end
@@ -237,7 +165,8 @@ end
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_link(ctx)
-  return find_link(context.resolve(ctx)) ~= nil
+  return ts.find_inline_at_cursor(context.resolve(ctx), LINK_NODE_TYPES)
+    ~= nil
 end
 
 --- Read the link containing the cursor. Errors if the cursor isn't on a
@@ -246,7 +175,7 @@ end
 ---@return gutenberg.link.Link, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = find_link(ctx)
+  local node = ts.find_inline_at_cursor(ctx, LINK_NODE_TYPES)
   if node == nil then
     error('cursor is not on a link')
   end
@@ -257,7 +186,8 @@ end
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_definition(ctx)
-  return find_definition(context.resolve(ctx)) ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'link_reference_definition')
+    ~= nil
 end
 
 --- Read the link reference definition containing the cursor. Errors if the
@@ -266,7 +196,7 @@ end
 ---@return gutenberg.link.Definition, TSNode
 function M.read_definition(ctx)
   ctx = context.resolve(ctx)
-  local node = find_definition(ctx)
+  local node = ts.find_at_cursor(ctx, 'link_reference_definition')
   if node == nil then
     error('cursor is not on a link reference definition')
   end
@@ -281,22 +211,14 @@ function M.definitions(ctx)
   ctx = context.resolve(ctx)
   ---@type table<string, gutenberg.link.Definition>
   local defs = {}
-  for_each_tree(ctx.bufnr, function(tree, lang)
-    if lang ~= 'markdown' then
-      return
-    end
-    local function visit(node)
-      if node:type() == 'link_reference_definition' then
-        local def = read_definition_node(node, ctx.bufnr)
-        defs[normalize_label(def.label)] = def
-        return
-      end
-      for child in node:iter_children() do
-        visit(child)
-      end
-    end
-    visit(tree:root())
-  end)
+  local root = ts.root(ctx.bufnr)
+  if root == nil then
+    return defs
+  end
+  for _, node in ipairs(ts.collect(root, 'link_reference_definition')) do
+    local def = read_definition_node(node, ctx.bufnr)
+    defs[normalize_label(def.label)] = def
+  end
   return defs
 end
 

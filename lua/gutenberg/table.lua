@@ -7,36 +7,16 @@
 
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
+local ts = require('gutenberg.ts')
 
 ---@class gutenberg.table
 local M = {}
-
---- Find the nearest `pipe_table` ancestor at the cursor, or nil.
----@param ctx gutenberg.Context
----@return TSNode?
-local function find_pipe_table(ctx)
-  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
-  if parser == nil then
-    return nil
-  end
-  local tree = parser:parse()[1]
-  local row = ctx.cursor[1] - 1
-  local col = ctx.cursor[2]
-  local node = tree:root():descendant_for_range(row, col, row, col)
-  while node ~= nil do
-    if node:type() == 'pipe_table' then
-      return node
-    end
-    node = node:parent()
-  end
-  return nil
-end
 
 --- Whether the cursor is on a pipe table. Gate calls to `read` with this.
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_table(ctx)
-  return find_pipe_table(context.resolve(ctx)) ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'pipe_table') ~= nil
 end
 
 ---@param node TSNode
@@ -83,7 +63,7 @@ end
 ---@return gutenberg.table.Table, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = find_pipe_table(ctx)
+  local node = ts.find_at_cursor(ctx, 'pipe_table')
   if node == nil then
     error('cursor is not on a pipe table')
   end
@@ -247,20 +227,8 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.replace(node, tables, ctx)
   ctx = context.resolve(ctx)
-  local sr, sc, er, ec = node:range()
-  if ec == 0 then
-    er = er - 1
-  end
-
-  -- When the table is nested in a container (e.g. block quote), columns
-  -- 0..sc-1 of the start row carry the container's prefix. Capture it and
-  -- prepend to every rewritten line so the container survives the edit.
-  local prefix = ''
-  if sc > 0 then
-    local first = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, sr + 1, false)[1]
-      or ''
-    prefix = first:sub(1, sc)
-  end
+  local sr = node:range()
+  local prefix = ts.container_prefix(node, ctx.bufnr)
 
   local lines = {}
   for i, tbl in ipairs(tables) do
@@ -272,7 +240,7 @@ function M.replace(node, tables, ctx)
     end
   end
 
-  buffer.set_lines(ctx.bufnr, sr, er + 1, lines)
+  buffer.set_lines(ctx.bufnr, sr, ts.end_row(node), lines)
 end
 
 --- Get a cell's text. Row 0 is the header; rows 1..N are body rows.

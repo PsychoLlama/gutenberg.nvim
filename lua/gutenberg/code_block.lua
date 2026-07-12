@@ -9,30 +9,10 @@
 
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
+local ts = require('gutenberg.ts')
 
 ---@class gutenberg.code_block
 local M = {}
-
---- Find the nearest `fenced_code_block` ancestor at the cursor, or nil.
----@param ctx gutenberg.Context
----@return TSNode?
-local function find_fenced_code_block(ctx)
-  local parser = vim.treesitter.get_parser(ctx.bufnr, 'markdown')
-  if parser == nil then
-    return nil
-  end
-  local tree = parser:parse()[1]
-  local row = ctx.cursor[1] - 1
-  local col = ctx.cursor[2]
-  local node = tree:root():descendant_for_range(row, col, row, col)
-  while node ~= nil do
-    if node:type() == 'fenced_code_block' then
-      return node
-    end
-    node = node:parent()
-  end
-  return nil
-end
 
 --- Locate the opening delimiter, optional info string, and closing delimiter
 --- within a `fenced_code_block` node.
@@ -62,7 +42,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 ---@return boolean
 function M.is_code_block(ctx)
-  return find_fenced_code_block(context.resolve(ctx)) ~= nil
+  return ts.find_at_cursor(context.resolve(ctx), 'fenced_code_block') ~= nil
 end
 
 --- Read the fenced code block containing the cursor. Errors if the cursor
@@ -72,7 +52,7 @@ end
 ---@return gutenberg.code_block.CodeBlock, TSNode
 function M.read(ctx)
   ctx = context.resolve(ctx)
-  local node = find_fenced_code_block(ctx)
+  local node = ts.find_at_cursor(ctx, 'fenced_code_block')
   if node == nil then
     error('cursor is not on a fenced code block')
   end
@@ -164,7 +144,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.replace(node, blocks, ctx)
   ctx = context.resolve(ctx)
-  local sr, _, er, ec = node:range()
+  local sr = node:range()
 
   local lines = {}
   for _, block in ipairs(blocks) do
@@ -173,16 +153,7 @@ function M.replace(node, blocks, ctx)
     end
   end
 
-  -- A `fenced_code_block` range ends on the row after the closing delimiter
-  -- when the buffer has a trailing newline; on the last block in the buffer
-  -- it can end at (closing_row, closing_end_col). Clamp to the closing
-  -- delimiter's row to avoid eating an unrelated following line.
-  local end_row = er
-  if ec ~= 0 then
-    end_row = er + 1
-  end
-
-  buffer.set_lines(ctx.bufnr, sr, end_row, lines)
+  buffer.set_lines(ctx.bufnr, sr, ts.end_row(node), lines)
 end
 
 --- Get the info string on a block.
