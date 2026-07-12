@@ -11,7 +11,7 @@
 ---@field tour gutenberg.tour
 local M = {}
 
----@param opts? gutenberg.Config
+---@param opts? gutenberg.Config.Partial
 function M.setup(opts)
   require('gutenberg.config').merge(opts)
 end
