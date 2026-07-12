@@ -156,6 +156,30 @@ function M.find_inline_at_cursor(ctx, capture)
   return found, metadata
 end
 
+--- Every node captured as `capture` when `lines` are parsed as a
+--- standalone markdown document, in document order, along with the
+--- concatenated source (pass it to `vim.treesitter.get_node_text`).
+--- Node ranges are relative to `lines`. Powers transforms that must
+--- inspect the tree a candidate edit WOULD produce before writing it.
+---@param lines string[]
+---@param capture string
+---@return TSNode[], string source
+function M.collect_in_lines(lines, capture)
+  local source = table.concat(lines, '\n')
+  local parser = vim.treesitter.get_string_parser(source, 'markdown')
+  local root = parser:parse()[1]:root()
+  local query = get_query('markdown')
+  local id = capture_id(query, capture)
+  ---@type TSNode[]
+  local results = {}
+  for cid, node in query:iter_captures(root, source) do
+    if cid == id then
+      table.insert(results, node)
+    end
+  end
+  return results, source
+end
+
 --- Every node captured as `capture` in the buffer's markdown block tree,
 --- in document order. Returns an empty list when no markdown parser is
 --- available.

@@ -280,6 +280,151 @@ describe('gutenberg.list', function()
     end)
   end)
 
+  describe('indent', function()
+    it('nests the item and renumbers both sibling groups', function()
+      local lines = { '1. one', '2. two', '3. three' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        list.indent(ctx)
+        assert.same(
+          { '1. one', '   1. two', '2. three' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { tabstop = 3 })
+    end)
+
+    it('preserves paren markers while renumbering', function()
+      local lines = { '1) one', '2) two', '3) three' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        list.indent(ctx)
+        assert.same(
+          { '1) one', '   1) two', '2) three' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { tabstop = 3 })
+    end)
+
+    it('moves nested children with the item', function()
+      local lines = { '- a', '- b', '  - b1' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        list.indent(ctx)
+        assert.same(
+          { '- a', '  - b', '    - b1' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('indents the first sibling with no new group', function()
+      local lines = { '- a', '- b' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.indent(ctx)
+        assert.same(
+          { '  - a', '- b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('shifts count units', function()
+      local lines = { '- a', '- b' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        list.indent({ bufnr = ctx.bufnr, cursor = ctx.cursor, count = 2 })
+        assert.same(
+          { '- a', '    - b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('uses a tab per unit when noexpandtab', function()
+      local lines = { '- a', '- b' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        list.indent(ctx)
+        assert.same(
+          { '- a', '\t- b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { expandtab = false })
+    end)
+
+    it('shift and renumber land in one buffer update', function()
+      local lines = { '1. one', '2. two', '3. three' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        list.indent(ctx)
+        assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
+      end, { tabstop = 3 })
+    end)
+
+    it('range: skips items whose parent item is also selected', function()
+      local lines = { '- a', '  - a1', '- b', '- c' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        list.indent({
+          bufnr = ctx.bufnr,
+          range = { mode = 'line', start = { 1, 0 }, stop = { 2, 0 } },
+        })
+        assert.same(
+          { '  - a', '    - a1', '- b', '- c' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('errors when the cursor is not on a list item', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          list.indent(ctx)
+        end, 'cursor is not on a list item')
+      end)
+    end)
+  end)
+
+  describe('dedent', function()
+    it('lifts the item and renumbers both sibling groups', function()
+      local lines = { '1. one', '   1. two', '   2. three', '2. four' }
+      with_buffer(lines, { 3, 0 }, function(ctx)
+        list.dedent(ctx)
+        assert.same(
+          { '1. one', '   1. two', '2. three', '3. four' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { tabstop = 3 })
+    end)
+
+    it('renumbers across a marker-type boundary', function()
+      local lines = { '- one', '  1. sub1', '  2. sub2', '- two' }
+      with_buffer(lines, { 3, 0 }, function(ctx)
+        list.dedent(ctx)
+        assert.same(
+          { '- one', '  1. sub1', '1. sub2', '- two' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
+    it('strips a tab per unit when noexpandtab', function()
+      local lines = { '- a', '\t- b' }
+      with_buffer(lines, { 2, 0 }, function(ctx)
+        list.dedent(ctx)
+        assert.same(
+          { '- a', '- b' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end, { expandtab = false })
+    end)
+
+    it('errors before writing when whitespace is short', function()
+      local lines = { '- a', '  - b' }
+      with_buffer(lines, { 1, 0 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        assert.error_matches(function()
+          list.dedent(ctx)
+        end, 'cannot dedent: line lacks 2 leading whitespace')
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+  end)
+
   describe('toggle_ordered_list', function()
     it('numbers every sibling sequentially', function()
       with_buffer({ '- foo', '- bar', '- baz' }, { 2, 0 }, function(ctx)

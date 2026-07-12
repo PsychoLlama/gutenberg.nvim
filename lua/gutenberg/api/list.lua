@@ -211,7 +211,7 @@ end
 --- already using.
 ---@param bufnr integer
 ---@return string
-local function resolve_indent(bufnr)
+function M.indent_unit(bufnr)
   local configured = require('gutenberg.config').get().list.indent
   if configured ~= nil then
     return configured
@@ -230,7 +230,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.indent(node, ctx)
   ctx = context.resolve(ctx)
-  local indent = resolve_indent(ctx.bufnr)
+  local indent = M.indent_unit(ctx.bufnr)
   local sr, end_row = content_rows(node, ctx.bufnr)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
   for i, line in ipairs(lines) do
@@ -246,7 +246,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.dedent(node, ctx)
   ctx = context.resolve(ctx)
-  local indent = resolve_indent(ctx.bufnr)
+  local indent = M.indent_unit(ctx.bufnr)
   local sr, end_row = content_rows(node, ctx.bufnr)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
   local strip = #indent
