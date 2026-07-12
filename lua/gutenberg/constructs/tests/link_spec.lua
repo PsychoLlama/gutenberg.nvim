@@ -1,4 +1,4 @@
-local link = require('gutenberg.link')
+local link = require('gutenberg.constructs.link')
 
 local with_buffer = require('gutenberg.tests.utils').with_buffer
 

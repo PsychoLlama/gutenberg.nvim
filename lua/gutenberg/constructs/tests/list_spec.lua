@@ -1,4 +1,4 @@
-local list = require('gutenberg.list')
+local list = require('gutenberg.constructs.list')
 local with_buffer = require('gutenberg.tests.utils').with_buffer
 
 describe('gutenberg.list', function()

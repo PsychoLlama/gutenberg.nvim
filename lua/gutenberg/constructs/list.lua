@@ -6,7 +6,7 @@
 
 local buffer = require('gutenberg.buffer')
 local context = require('gutenberg.context')
-local ts = require('gutenberg.ts')
+local ts = require('gutenberg.treesitter')
 
 ---@class gutenberg.list
 local M = {}

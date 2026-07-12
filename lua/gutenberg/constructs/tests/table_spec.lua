@@ -1,4 +1,4 @@
-local tbl = require('gutenberg.table')
+local tbl = require('gutenberg.constructs.table')
 
 local with_buffer = require('gutenberg.tests.utils').with_buffer
 

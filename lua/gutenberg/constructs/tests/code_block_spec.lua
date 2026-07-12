@@ -1,4 +1,4 @@
-local code_block = require('gutenberg.code_block')
+local code_block = require('gutenberg.constructs.code_block')
 
 local with_buffer = require('gutenberg.tests.utils').with_buffer
 

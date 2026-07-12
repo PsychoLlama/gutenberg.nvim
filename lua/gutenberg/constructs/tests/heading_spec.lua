@@ -1,4 +1,4 @@
-local heading = require('gutenberg.heading')
+local heading = require('gutenberg.constructs.heading')
 
 local with_buffer = require('gutenberg.tests.utils').with_buffer
 

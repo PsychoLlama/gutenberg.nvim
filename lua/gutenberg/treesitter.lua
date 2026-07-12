@@ -4,12 +4,12 @@
 --- queries to raw `TSNode`s. The feature modules translate nodes to and
 --- from their value types. Internal — not part of the public API.
 
----@class gutenberg.ts
+---@class gutenberg.treesitter
 local M = {}
 
----@alias gutenberg.ts.Types string | table<string, true>
+---@alias gutenberg.treesitter.Types string | table<string, true>
 
----@param types gutenberg.ts.Types
+---@param types gutenberg.treesitter.Types
 ---@return table<string, true>
 local function as_set(types)
   if type(types) == 'string' then
@@ -181,7 +181,7 @@ end
 
 --- First direct child of `node` whose type is in `types`, or nil.
 ---@param node TSNode
----@param types gutenberg.ts.Types
+---@param types gutenberg.treesitter.Types
 ---@return TSNode?
 function M.child(node, types)
   local set = as_set(types)

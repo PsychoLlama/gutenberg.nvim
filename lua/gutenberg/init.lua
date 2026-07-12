@@ -13,11 +13,16 @@ function M.setup(opts)
 end
 
 -- Lazy submodule access. `require('gutenberg').list` resolves to
--- `require('gutenberg.list')` on first reference and caches the result
--- so startup pays no import cost for unused submodules.
+-- `require('gutenberg.constructs.list')` (falling back to
+-- `require('gutenberg.<key>')` for non-construct modules) on first
+-- reference and caches the result so startup pays no import cost for
+-- unused submodules.
 setmetatable(M, {
   __index = function(self, key)
-    local ok, mod = pcall(require, 'gutenberg.' .. key)
+    local ok, mod = pcall(require, 'gutenberg.constructs.' .. key)
+    if not ok then
+      ok, mod = pcall(require, 'gutenberg.' .. key)
+    end
     if not ok then
       return nil
     end

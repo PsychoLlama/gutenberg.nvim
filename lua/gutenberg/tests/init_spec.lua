@@ -3,29 +3,32 @@ describe('gutenberg', function()
     before_each(function()
       -- Force a fresh require so package.loaded reflects a cold start.
       package.loaded['gutenberg'] = nil
-      package.loaded['gutenberg.list'] = nil
-      package.loaded['gutenberg.heading'] = nil
-      package.loaded['gutenberg.table'] = nil
-      package.loaded['gutenberg.code_block'] = nil
-      package.loaded['gutenberg.link'] = nil
+      package.loaded['gutenberg.constructs.list'] = nil
+      package.loaded['gutenberg.constructs.heading'] = nil
+      package.loaded['gutenberg.constructs.table'] = nil
+      package.loaded['gutenberg.constructs.code_block'] = nil
+      package.loaded['gutenberg.constructs.link'] = nil
     end)
 
     it('does not load submodules on the root require', function()
       require('gutenberg')
-      assert.is_nil(package.loaded['gutenberg.list'])
-      assert.is_nil(package.loaded['gutenberg.heading'])
-      assert.is_nil(package.loaded['gutenberg.table'])
-      assert.is_nil(package.loaded['gutenberg.code_block'])
-      assert.is_nil(package.loaded['gutenberg.link'])
+      assert.is_nil(package.loaded['gutenberg.constructs.list'])
+      assert.is_nil(package.loaded['gutenberg.constructs.heading'])
+      assert.is_nil(package.loaded['gutenberg.constructs.table'])
+      assert.is_nil(package.loaded['gutenberg.constructs.code_block'])
+      assert.is_nil(package.loaded['gutenberg.constructs.link'])
     end)
 
     it('resolves submodules on first access', function()
       local gutenberg = require('gutenberg')
-      assert.equal(require('gutenberg.list'), gutenberg.list)
-      assert.equal(require('gutenberg.heading'), gutenberg.heading)
-      assert.equal(require('gutenberg.table'), gutenberg.table)
-      assert.equal(require('gutenberg.code_block'), gutenberg.code_block)
-      assert.equal(require('gutenberg.link'), gutenberg.link)
+      assert.equal(require('gutenberg.constructs.list'), gutenberg.list)
+      assert.equal(require('gutenberg.constructs.heading'), gutenberg.heading)
+      assert.equal(require('gutenberg.constructs.table'), gutenberg.table)
+      assert.equal(
+        require('gutenberg.constructs.code_block'),
+        gutenberg.code_block
+      )
+      assert.equal(require('gutenberg.constructs.link'), gutenberg.link)
     end)
 
     it('caches resolved submodules', function()

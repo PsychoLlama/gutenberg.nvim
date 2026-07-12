@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Construct modules moved under `lua/gutenberg/constructs/`:
+  `require('gutenberg.list')` is now
+  `require('gutenberg.constructs.list')` (same for `heading`, `table`,
+  `code_block`, and `link`). The recommended access path is unchanged
+  and now canonical: `require('gutenberg').list`.
 - Error messages are prefixed with `gutenberg:` and thrown without
   file/line position info (`error(msg, 0)`), so keymaps can `pcall` an
   operation and pass the message straight to `vim.notify`. See
