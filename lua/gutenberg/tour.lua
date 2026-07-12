@@ -124,16 +124,22 @@ local function apply_keymaps(bufnr)
     keymap.notify(gutenberg.table.format)
   end, { buffer = bufnr, desc = 'gutenberg: format table' })
   -- One binding for the "alignment axis": toggle a list ordered, or
-  -- cycle a table column's alignment.
+  -- cycle a table column's alignment. On a list a plain press converts
+  -- the whole sibling group; a visual selection converts just its
+  -- items.
   edit('<leader>ma', function(ctx)
     if gutenberg.api.list.is_list_item(ctx) then
-      gutenberg.list.toggle_ordered(ctx)
+      if ctx.range ~= nil then
+        gutenberg.list.toggle_ordered(ctx)
+      else
+        gutenberg.list.toggle_ordered_list(ctx)
+      end
     elseif gutenberg.api.table.is_table(ctx) then
       gutenberg.table.cycle_alignment(ctx)
     else
       error('gutenberg: no list or table under the cursor', 0)
     end
-  end, 'toggle ordered / cycle column alignment')
+  end, 'toggle ordered list / cycle column alignment')
   vim.keymap.set('n', '<leader>mt', function()
     keymap.notify(gutenberg.table.actions)
   end, { buffer = bufnr, desc = 'gutenberg: table actions' })

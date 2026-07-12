@@ -393,53 +393,25 @@ describe('gutenberg.table', function()
       end)
     end)
 
-    it('inserts an empty row below in one write', function()
-      with_buffer(GRID, { 3, 2 }, function(ctx)
-        with_ui({ 'Insert row below' }, nil, function()
+    it('prompts for the header when inserting a column right', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        with_ui({ 'Insert column right' }, 'c', function()
           local tick = vim.b[ctx.bufnr].changedtick
           tbl.actions(ctx)
           assert.same({
-            '| a   | b   |',
-            '| --- | --- |',
-            '| a1  | b1  |',
-            '|     |     |',
-            '| a2  | b2  |',
+            '| a   | c   | b   |',
+            '| --- | --- | --- |',
+            '| a1  |     | b1  |',
+            '| a2  |     | b2  |',
           }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
           assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
         end)
       end)
     end)
 
-    it('deletes the cursor row', function()
-      with_buffer(GRID, { 3, 2 }, function(ctx)
-        with_ui({ 'Delete row' }, nil, function()
-          tbl.actions(ctx)
-          assert.same({
-            '| a   | b   |',
-            '| --- | --- |',
-            '| a2  | b2  |',
-          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
-        end)
-      end)
-    end)
-
-    it('moves the cursor row down', function()
-      with_buffer(GRID, { 3, 2 }, function(ctx)
-        with_ui({ 'Move row down' }, nil, function()
-          tbl.actions(ctx)
-          assert.same({
-            '| a   | b   |',
-            '| --- | --- |',
-            '| a2  | b2  |',
-            '| a1  | b1  |',
-          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
-        end)
-      end)
-    end)
-
-    it('prompts for the header when inserting a column', function()
-      with_buffer(GRID, { 1, 2 }, function(ctx)
-        with_ui({ 'Insert column right' }, 'c', function()
+    it('inserts a column left of the cursor', function()
+      with_buffer(GRID, { 1, 7 }, function(ctx)
+        with_ui({ 'Insert column left' }, 'c', function()
           tbl.actions(ctx)
           assert.same({
             '| a   | c   | b   |',
@@ -451,49 +423,29 @@ describe('gutenberg.table', function()
       end)
     end)
 
-    it('sets the column alignment through a nested select', function()
-      with_buffer(GRID, { 1, 2 }, function(ctx)
-        with_ui({ 'Set alignment', 'center' }, nil, function()
+    it('deletes the cursor column', function()
+      with_buffer(GRID, { 1, 7 }, function(ctx)
+        with_ui({ 'Delete column' }, nil, function()
           tbl.actions(ctx)
           assert.same({
-            '|  a  | b   |',
-            '| :-: | --- |',
-            '| a1  | b1  |',
-            '| a2  | b2  |',
+            '| a   |',
+            '| --- |',
+            '| a1  |',
+            '| a2  |',
           }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
         end)
       end)
     end)
 
-    it('formats the table', function()
-      local ragged = { '| a | b |', '| - | - |', '|1|two|' }
-      with_buffer(ragged, { 3, 0 }, function(ctx)
-        with_ui({ 'Format table' }, nil, function()
-          tbl.actions(ctx)
-          assert.same({
-            '| a   | b   |',
-            '| --- | --- |',
-            '| 1   | two |',
-          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
-        end)
-      end)
-    end)
-
-    it('omits inapplicable entries on the header row', function()
-      with_buffer(GRID, { 1, 2 }, function(ctx)
+    it('offers only column operations', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
         with_ui({}, nil, function(offered)
           tbl.actions(ctx)
-          local set = {}
-          for _, label in ipairs(offered) do
-            set[label] = true
-          end
-          assert.is_nil(set['Insert row above'])
-          assert.is_nil(set['Delete row'])
-          assert.is_nil(set['Move row up'])
-          assert.is_nil(set['Move row down'])
-          assert.is_nil(set['Move column left'])
-          assert.is_true(set['Insert row below'])
-          assert.is_true(set['Move column right'])
+          assert.same({
+            'Insert column left',
+            'Insert column right',
+            'Delete column',
+          }, offered)
         end)
       end)
     end)
@@ -522,11 +474,12 @@ describe('gutenberg.table', function()
     end)
 
     it('lands the cursor on the affected cell', function()
-      with_buffer(GRID, { 3, 2 }, function(ctx)
+      with_buffer(GRID, { 3, 7 }, function(ctx)
         display(ctx)
-        with_ui({ 'Move row down' }, nil, function()
+        with_ui({ 'Delete column' }, nil, function()
           tbl.actions(ctx)
-          assert.same({ 4, 2 }, vim.api.nvim_win_get_cursor(0))
+          -- Column b is gone; the cursor lands in the surviving column.
+          assert.same({ 3, 2 }, vim.api.nvim_win_get_cursor(0))
         end)
       end)
     end)

@@ -87,12 +87,12 @@ local function land(ctx, sr, target_row, target_col)
   end
 end
 
---- Open a `vim.ui.select` picker of structural operations on the table
---- at the cursor: insert/delete/move rows and columns, set the cursor
---- column's alignment (a nested select), and format. Entries that
---- don't apply at the cursor position (deleting the header row, moving
---- the first column left, …) are omitted. Column inserts prompt
---- `vim.ui.input` for the header text.
+--- Open a `vim.ui.select` picker of column operations on the table at
+--- the cursor: insert a column left or right (each prompting
+--- `vim.ui.input` for the header) and delete the cursor column.
+--- Row edits and the single-column verbs (moving, alignment, format)
+--- have their own keymaps, so they're left out here; deleting the last
+--- remaining column is omitted too.
 ---
 --- The cursor's table, row, and column are resolved eagerly — the
 --- prompt can't retarget — and erroring off-table happens
@@ -132,38 +132,6 @@ function M.actions(ctx)
     end
   end
 
-  add('Insert row above', row >= 1, function()
-    apply(function(t)
-      api.insert_row(t, row, {})
-    end, row, col)
-  end)
-
-  add('Insert row below', true, function()
-    local index = row + 1
-    apply(function(t)
-      api.insert_row(t, index, {})
-    end, index, col)
-  end)
-
-  add('Delete row', row >= 1, function()
-    local target = math.max(0, math.min(row, #tbl.rows - 1))
-    apply(function(t)
-      api.delete_row(t, row)
-    end, target, col)
-  end)
-
-  add('Move row up', row >= 2, function()
-    apply(function(t)
-      api.move_row(t, row, row - 1)
-    end, row - 1, col)
-  end)
-
-  add('Move row down', row >= 1 and row < #tbl.rows, function()
-    apply(function(t)
-      api.move_row(t, row, row + 1)
-    end, row + 1, col)
-  end)
-
   add('Insert column left', true, function()
     vim.ui.input({ prompt = 'Header: ' }, function(input)
       if input == nil then
@@ -191,37 +159,6 @@ function M.actions(ctx)
     apply(function(t)
       api.delete_column(t, col)
     end, row, target)
-  end)
-
-  add('Move column left', col >= 2, function()
-    apply(function(t)
-      api.move_column(t, col, col - 1)
-    end, row, col - 1)
-  end)
-
-  add('Move column right', col < #tbl.headers, function()
-    apply(function(t)
-      api.move_column(t, col, col + 1)
-    end, row, col + 1)
-  end)
-
-  add('Set alignment', true, function()
-    vim.ui.select(
-      { 'none', 'left', 'center', 'right' },
-      { prompt = 'Alignment' },
-      function(choice)
-        if choice == nil then
-          return
-        end
-        apply(function(t)
-          api.set_alignment(t, col, choice)
-        end, row, col)
-      end
-    )
-  end)
-
-  add('Format table', true, function()
-    apply(function() end, row, col)
   end)
 
   vim.ui.select(actions, {

@@ -45,9 +45,9 @@ selection checks everything, a fully-checked one unchecks:
 - [ ] apples
 - pears
 
-`<leader>ma` switches the item under the cursor between a bullet and a
-number, renumbering the run from 1 as it goes. Give it a count to
-convert several at once, or select a range in visual mode:
+`<leader>ma` switches every sibling at the cursor's level between
+bullets and numbers, renumbering from 1 as it goes. Select a range in
+visual mode to convert just those items:
 
 - preheat the oven
 - whisk the batter
@@ -85,14 +85,14 @@ the buffer.
 | `<leader>mo` / `<leader>mO` | Add a row below / above, then insert                  |
 | `<leader>mf`                | Format the table: pad cells, align pipes              |
 | `<leader>ma`                | Cycle the cursor column: none → left → center → right |
-| `<leader>mt`                | Structural actions: rows, columns, alignment          |
+| `<leader>mt`                | Column picker: insert left / right, delete            |
 
 A ragged table to work with — walk its cells with `]e`, rewrite a cell
 with `ci|`, then `<leader>mf` to clean it up. The depth bindings work
 here too: `<leader>m>` drags the cursor's column right and `<leader>m<`
 drags it back, cursor riding along so repeated presses keep dragging.
-Add a row with `<leader>mo`; for the rest — deleting columns, moving
-rows — `<leader>mt` opens a picker of structural edits:
+Add a row with `<leader>mo`, delete one with `dd`; to insert or delete
+a column, `<leader>mt` opens a picker:
 
 <!-- prettier-ignore -->
 | Item | Price | Notes |
