@@ -13,8 +13,8 @@ Initial release.
 
 - Two-tier API: keymap-ready sugar on `require('gutenberg')`,
   low-level primitives on `require('gutenberg.api')`.
-- Count and visual-range support across the editing verbs (bulk
-  checkbox toggles, multi-heading shifts) — every bulk edit is a
+- Count and visual-range support across the editing verbs (visual
+  bulk checkbox toggles, multi-heading shifts) — every bulk edit is a
   single buffer update and one undo entry.
 - `gutenberg.keymap` adapters for dot-repeat, counts, operators, and
   live visual selections.

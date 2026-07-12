@@ -42,8 +42,8 @@ end
 --- Wrap a sugar verb as a dot-repeatable, count-aware normal-mode
 --- edit. Returns a function for an `expr = true` mapping:
 --- >lua
----   vim.keymap.set('n', '<leader>mx', keymap.repeatable(function(ctx)
----     require('gutenberg').list.toggle_checkbox(ctx)
+---   vim.keymap.set('n', '<leader>m>', keymap.repeatable(function(ctx)
+---     require('gutenberg').heading.demote(ctx)
 ---   end), { expr = true })
 --- <
 --- `fn` receives `{ count = vim.v.count1 }`; `3<lhs>`, `.`, and `5.`

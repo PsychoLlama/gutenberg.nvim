@@ -180,8 +180,8 @@ config below and the tour use):
   edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
 <
 With that, `3]h` jumps three headings, `d]h` deletes to the next one,
-`3<leader>mx` checks three items, a visual `<leader>mx` bulk-toggles
-the selection, and `.` repeats — count included.
+a visual `<leader>mx` bulk-toggles the selection, and `.` repeats —
+count included.
 
 Semantically related actions can share one binding and dispatch on
 what's under the cursor — the `is_*` probes make the gate a two-line
@@ -403,8 +403,8 @@ notify({fn})                                        *gutenberg.keymap.notify()*
 repeatable({fn})                                *gutenberg.keymap.repeatable()*
     Wrap a sugar verb as a dot-repeatable, count-aware normal-mode
     edit. Returns a function for an `expr = true` mapping: >lua
-      vim.keymap.set('n', '<leader>mx', keymap.repeatable(function(ctx)
-        require('gutenberg').list.toggle_checkbox(ctx)
+      vim.keymap.set('n', '<leader>m>', keymap.repeatable(function(ctx)
+        require('gutenberg').heading.demote(ctx)
       end), { expr = true })
 <
     {fn} receives `{ count = vim.v.count1 }`. The count is read inside
@@ -552,11 +552,11 @@ update_list({fn}, {ctx})                         *gutenberg.list.update_list()*
 toggle_checkbox({ctx})                       *gutenberg.list.toggle_checkbox()*
     Toggle the checkbox on the item at the cursor: bare items gain one
     in the configured state (`gutenberg.list.Config.default_checked`),
-    checkboxed items flip. With a count, targets the cursor item plus
-    the next count-1 items in document order; with a range, every item
-    inside it. Bulk toggles act as a group — if any target is
-    unchecked or bare, all become checked, otherwise all become
-    unchecked — in one buffer update.
+    checkboxed items flip. With a range, toggles every item inside it
+    as a group — if any target is unchecked or bare, all become
+    checked, otherwise all become unchecked — in one buffer update.
+    Counts are ignored: "toggle 3 checkboxes" has no coherent meaning,
+    so bulk toggles come from ranges (visual mode at the keymap edge).
 
 toggle_ordered({ctx})                         *gutenberg.list.toggle_ordered()*
     Switch the item at the cursor between ordered and unordered. With

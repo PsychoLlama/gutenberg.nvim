@@ -334,16 +334,17 @@ end
 --- checkbox gain one in the configured state
 --- (`gutenberg.list.Config.default_checked`); items with one flip.
 ---
---- With `ctx.count > 1` or `ctx.range`, operates on the targeted items
---- (see above) as a group in one buffer update: if any target is
---- unchecked or missing its checkbox, all become checked; otherwise
---- all become unchecked. Errors if the cursor isn't on a list item (or
---- the range holds none).
+--- With `ctx.range`, toggles every item in the range as a group in one
+--- buffer update: if any target is unchecked or missing its checkbox,
+--- all become checked; otherwise all become unchecked. Counts are
+--- ignored — "toggle 3 checkboxes" has no coherent meaning, so bulk
+--- toggles come from ranges. Errors if the cursor isn't on a list item
+--- (or the range holds none).
 ---@param ctx? gutenberg.Context.Partial
 ---@return gutenberg.list.Item[] written
 function M.toggle_checkbox(ctx)
   ctx = context.resolve(ctx)
-  if ctx.range == nil and ctx.count == 1 then
+  if ctx.range == nil then
     return M.update(function(item)
       local checked = api.is_checked(item)
       if checked == nil then

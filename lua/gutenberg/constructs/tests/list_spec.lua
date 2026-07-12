@@ -124,8 +124,8 @@ describe('gutenberg.list', function()
       end)
     end)
 
-    it('targets the cursor item plus the next count - 1', function()
-      local lines = { '- [ ] a', '- b', '- [ ] c' }
+    it('ignores counts — bulk toggles come from ranges', function()
+      local lines = { '- [ ] a', '- [ ] b' }
       with_buffer(lines, { 1, 0 }, function(ctx)
         list.toggle_checkbox({
           bufnr = ctx.bufnr,
@@ -133,22 +133,7 @@ describe('gutenberg.list', function()
           count = 2,
         })
         assert.same(
-          { '- [x] a', '- [x] b', '- [ ] c' },
-          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
-        )
-      end)
-    end)
-
-    it('counts through nested items in document order', function()
-      local lines = { '- [ ] a', '  - [ ] nested', '- [ ] b' }
-      with_buffer(lines, { 1, 0 }, function(ctx)
-        list.toggle_checkbox({
-          bufnr = ctx.bufnr,
-          cursor = ctx.cursor,
-          count = 2,
-        })
-        assert.same(
-          { '- [x] a', '  - [x] nested', '- [ ] b' },
+          { '- [x] a', '- [ ] b' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)
