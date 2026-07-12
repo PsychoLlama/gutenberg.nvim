@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `:h gutenberg-recommended-config` — a complete, copyable keymap
+  config scoped to markdown/MDX buffers, mirroring what the tutor
+  teaches. The help docs were restructured around it: a design section
+  naming the three kinds of API (interpretation, navigation,
+  codemods), a uniform per-module reference format, and sections for
+  the tutor and health check.
 - `gutenberg.tutor()` — an interactive tour in the spirit of
   `:Tutor`. Opens a scratch copy of the shipped lessons
   (`doc/gutenberg-tutor.md`) with the recommended keymaps bound to

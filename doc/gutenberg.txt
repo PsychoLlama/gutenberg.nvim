@@ -11,117 +11,356 @@ License:  MIT
 ==============================================================================
 OVERVIEW                                                    *gutenberg-overview*
 
-Get started: |gutenberg.setup|
+gutenberg is a library of composable APIs for editing markdown, built on
+treesitter. It ships no keymaps and no commands — it provides the
+primitives to build your own:
+>lua
+  local list = require('gutenberg').list
+
+  if list.is_list_item() then
+    local item, node = list.read()
+    list.set_checked(item, not list.is_checked(item))
+    list.replace(node, { item })
+  end
+<
+Or, using the sugar tier that composes that loop for you:
+>lua
+  require('gutenberg').list.toggle_checkbox()
+<
+Where to go next:
+
+  New here?             `:lua require('gutenberg').tutor()`  |gutenberg.tutor|
+  Bind some keymaps     |gutenberg-recommended-config|
+  Learn the shape       |gutenberg-design|, |gutenberg-recipes|
+  Full reference        |gutenberg-api|
+  Something's broken    `:checkhealth gutenberg`         |gutenberg-health|
 
 ==============================================================================
 SETUP                                                          *gutenberg.setup*
 
-Add the following to your `init.lua`:
+Optional — gutenberg works out of the box. Call `setup` to change the
+defaults listed in |gutenberg.config|:
 >lua
   require('gutenberg').setup{
-    -- ...
+    list = { default_checked = false },
   }
 <
-The root module also offers lazy access to every submodule, so
-`require('gutenberg').list` is equivalent to `require('gutenberg.list')`
-but defers the underlying require until first use. Cached after the
-first reference.
+The root module lazily resolves every submodule, so
+`require('gutenberg').list` is equivalent to requiring the module
+directly but defers the cost until first use. Nothing loads at startup
+for features you don't touch.
 
-------------------------------------------------------------------------------
-KEYBINDINGS                                              *gutenberg-keybindings*
+==============================================================================
+DESIGN                                                        *gutenberg-design*
 
-gutenberg ships no keymaps. Every behavior is designed to be bound to one,
-but exposed API-first so the same functions serve keymaps, autocommands,
-and programmatic rewrites alike. See |gutenberg-recipes| for the intended
-binding patterns and |gutenberg-errors| for how failures are surfaced.
+Everything gutenberg exposes is one of three kinds of function:
+
+- Interpretation — answer questions about the document without changing
+  it: the `is_*` probes, `read`, `get_*` accessors,
+  |gutenberg.link.resolve()|, |gutenberg.table.column_at()|.
+- Navigation — locate constructs: |gutenberg.heading.list()| and the
+  `find_*` family. These return values and nodes; they never move the
+  cursor. Jumping is your keymap's job.
+- Codemods — produce text or change the buffer: `create` / `render`
+  build text from values, `set_*` mutate values in memory, `replace`
+  writes back in a single update, and the sugar verbs (`update`,
+  `toggle_checkbox`, `promote`, `format`, …) compose the whole loop.
+
+Every construct module — |gutenberg.list|, |gutenberg.heading|,
+|gutenberg.table|, |gutenberg.code_block|, |gutenberg.link| — shares one
+surface built from those kinds:
+
+  `is_*({ctx})`          probe the cursor
+  `read({ctx})`          decode the node into a plain value
+  getters / setters    inspect and mutate the value in memory
+  `create({fields})`     build a value from scratch
+  `render(value)`        turn a value back into text
+  `replace(node, …)`     write it to the buffer in one update
+  `update(fn, {ctx})`    sugar: read → `fn` → replace in one call
+
+Transforms stay in memory until the final `replace`, so a multi-step
+edit is one buffer write and one undo entry. No-op writes are skipped
+entirely and never pollute undo history.
+
+CONTEXT                                                      *gutenberg.context*
+
+Nothing assumes the current buffer or cursor. Every cursor-relative
+function takes an optional context table and defaults missing fields to
+the current buffer and window cursor:
+>lua
+  ---@class gutenberg.Context.Partial
+  ---@field bufnr? integer
+  ---@field cursor? [integer, integer]  -- {row (1-indexed), col (0-indexed)}
+<
+Pass `{ bufnr = ... }` to drive edits in background buffers, or a full
+`{ bufnr, cursor }` for fully programmatic rewrites.
+
+==============================================================================
+TUTOR                                                          *gutenberg.tutor*
+
+An interactive tour of the plugin, in the spirit of |:Tutor|:
+>lua
+  require('gutenberg').tutor()
+<
+This opens a scratch copy of the lessons — edit anything, nothing is
+saved — with the keymaps from |gutenberg-recommended-config| bound to
+that buffer alone. Reopening replaces the buffer with a fresh copy.
+Returns the tutor buffer number.
 
 ==============================================================================
 RECIPES                                                      *gutenberg-recipes*
 
-Bind behaviors from buffer-local keymaps, e.g. in a markdown |FileType|
-autocommand. The shape is always the same: gate with the module's `is_*`
-probe, `read` into a value, mutate it in memory, and `replace` it in a
-single write.
+The sugar verbs bind directly. Gate-and-notify is the only edge logic
+you need — every gutenberg error message is ready for |vim.notify()|
+verbatim (see |gutenberg-errors|):
 >lua
   vim.keymap.set('n', '<leader>mx', function()
-    local list = require('gutenberg').list
-    if not list.is_list_item() then
-      return
+    local ok, err = pcall(require('gutenberg').list.toggle_checkbox)
+    if not ok then
+      vim.notify(err, vim.log.levels.WARN)
     end
-    local item, node = list.read()
-    local checked = list.is_checked(item)
-    if checked == nil then
-      local config = require('gutenberg').config.get()
-      list.set_checked(item, config.list.default_checked)
-    else
-      list.set_checked(item, not checked)
-    end
-    list.replace(node, { item })
   end, { buffer = true, desc = 'gutenberg: toggle checkbox' })
 <
-Operations that depend on the value — not just the cursor position — can
-fail even after the probe passes (see |gutenberg-errors|). Wrap those in
-`pcall` and hand the message to |vim.notify()|:
+Behaviors without a dedicated verb compose from `update`, which reads
+the construct at the cursor, applies your function, and writes back in
+a single update:
 >lua
-  vim.keymap.set('n', '<leader>m<', function()
-    local list = require('gutenberg').list
-    if not list.is_list_item() then
-      return
+  -- Uppercase the heading under the cursor.
+  local heading = require('gutenberg').heading
+  heading.update(function(h)
+    heading.set_text(h, heading.get_text(h):upper())
+  end)
+<
+And anything `update` can't express drops down one layer to the same
+primitives it is built from:
+>lua
+  -- Renumber ordered siblings after moving a line.
+  local list = require('gutenberg').list
+  list.update_list(function(entries)
+    for i, entry in ipairs(entries) do
+      if list.is_ordered(entry.item) then
+        list.set_marker(entry.item, i .. '.')
+      end
     end
-    local _, node = list.read()
-    local ok, err = pcall(list.dedent, node)
-    if not ok then
-      vim.notify(err, vim.log.levels.ERROR)
-    end
-  end, { buffer = true, desc = 'gutenberg: dedent list item' })
+  end)
+<
+------------------------------------------------------------------------------
+RECOMMENDED CONFIG                                *gutenberg-recommended-config*
+
+A complete, copyable starting point. It scopes the maps to markdown and
+MDX buffers and surfaces failures as notifications:
+
+  Navigation ~
+    ]h            jump to next heading
+    [h            jump to previous heading
+    gO            heading picker (|vim.ui.select()|)
+
+  Codemods ~
+    <leader>mp    promote heading        <leader>md    demote heading
+    <leader>mx    toggle checkbox        <leader>mo    toggle ordered list
+    <leader>m>    indent list item       <leader>m<    dedent list item
+    <leader>mf    format table           <leader>ma    cycle column alignment
+    <leader>mc    set code block language
+    <leader>ml    set link URL           <leader>mL    set link text
+>lua
+  vim.api.nvim_create_autocmd('FileType', {
+    pattern = { 'markdown', 'markdown.mdx', 'mdx' },
+    callback = function(args)
+      local gutenberg = require('gutenberg')
+
+      local function notify_errors(fn)
+        local ok, err = pcall(fn)
+        if not ok then
+          vim.notify(tostring(err), vim.log.levels.WARN)
+        end
+      end
+
+      local function map(lhs, fn, desc)
+        vim.keymap.set('n', lhs, function()
+          notify_errors(fn)
+        end, { buffer = args.buf, desc = 'gutenberg: ' .. desc })
+      end
+
+      local function jump_to(node)
+        if node == nil then
+          return
+        end
+        local row, col = node:range()
+        vim.api.nvim_win_set_cursor(0, { row + 1, col })
+      end
+
+      -- Navigation
+      map(']h', function()
+        local _, node = gutenberg.heading.find_next()
+        jump_to(node)
+      end, 'next heading')
+
+      map('[h', function()
+        local _, node = gutenberg.heading.find_prev()
+        jump_to(node)
+      end, 'previous heading')
+
+      map('gO', function()
+        vim.ui.select(gutenberg.heading.list(), {
+          prompt = 'Headings',
+          format_item = function(entry)
+            return string.rep('#', entry.heading.level)
+              .. ' '
+              .. entry.heading.text
+          end,
+        }, function(choice)
+          if choice then
+            jump_to(choice.node)
+          end
+        end)
+      end, 'heading picker')
+
+      -- Headings
+      map('<leader>mp', gutenberg.heading.promote, 'promote heading')
+      map('<leader>md', gutenberg.heading.demote, 'demote heading')
+
+      -- Lists
+      map('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
+      map('<leader>mo', gutenberg.list.toggle_ordered_list, 'toggle ordered list')
+
+      map('<leader>m>', function()
+        local _, node = gutenberg.list.read()
+        gutenberg.list.indent(node)
+      end, 'indent list item')
+
+      map('<leader>m<', function()
+        local _, node = gutenberg.list.read()
+        gutenberg.list.dedent(node)
+      end, 'dedent list item')
+
+      -- Tables
+      map('<leader>mf', gutenberg.table.format, 'format table')
+      map('<leader>ma', gutenberg.table.cycle_alignment, 'cycle alignment')
+
+      -- Code blocks
+      map('<leader>mc', function()
+        local block = gutenberg.code_block.read()
+        vim.ui.input({
+          prompt = 'Language: ',
+          default = gutenberg.code_block.get_language(block),
+        }, function(input)
+          if input == nil then
+            return
+          end
+          notify_errors(function()
+            gutenberg.code_block.update(function(b)
+              gutenberg.code_block.set_language(b, input)
+            end)
+          end)
+        end)
+      end, 'set code block language')
+
+      -- Links
+      map('<leader>ml', function()
+        local link = gutenberg.link.read()
+        vim.ui.input({
+          prompt = 'URL: ',
+          default = gutenberg.link.get_url(link) or '',
+        }, function(input)
+          if input == nil then
+            return
+          end
+          notify_errors(function()
+            gutenberg.link.update(function(l)
+              gutenberg.link.set_url(l, input)
+            end)
+          end)
+        end)
+      end, 'set link URL')
+
+      map('<leader>mL', function()
+        local link = gutenberg.link.read()
+        vim.ui.input({
+          prompt = 'Text: ',
+          default = gutenberg.link.get_text(link) or '',
+        }, function(input)
+          if input == nil then
+            return
+          end
+          notify_errors(function()
+            gutenberg.link.update(function(l)
+              gutenberg.link.set_text(l, input)
+            end)
+          end)
+        end)
+      end, 'set link text')
+    end,
+  })
 <
 ==============================================================================
 ERRORS                                                        *gutenberg-errors*
 
 gutenberg never calls |vim.notify()|. Functions throw, and the binding
 edge decides whether a failure is user-facing — the same API must serve
-interactive keymaps and silent programmatic rewrites, and only the caller
-knows which one it is.
+interactive keymaps and silent programmatic rewrites, and only the
+caller knows which one it is.
 
 Errors fall into two classes:
 
-- Contract violations: calling `read` without gating on the `is_*` probe,
-  invalid arguments (|gutenberg.heading.set_level| outside 1..6, bad cell
-  indices), or a broken install (missing |gutenberg-queries| files). These
-  indicate a bug in the calling code or the setup; fix the code.
-- Inapplicable operations: a correctly-gated action that doesn't apply to
-  the value under the cursor — |gutenberg.list.dedent| on an unindented
-  item, or `set_url` on a `reference_*` link (|gutenberg.link-accessors|).
-  These are expected at the keymap edge; wrap them in `pcall` and surface
-  the message (see |gutenberg-recipes|).
+- Contract violations: calling `read` without gating on the `is_*`
+  probe, invalid arguments (|gutenberg.heading.set_level()| outside
+  1..6, bad cell indices), or a broken install (missing
+  |gutenberg-queries| files). These indicate a bug in the calling code
+  or the setup; fix the code.
+- Inapplicable operations: a correctly-gated action that doesn't apply
+  to the value under the cursor — |gutenberg.list.dedent()| on an
+  unindented item, or `set_url` on a `reference_*` link
+  (|gutenberg.link-accessors|). These are expected at the keymap edge;
+  wrap them in `pcall` and surface the message.
 
 Messages are prefixed with `gutenberg:` and thrown without position
 information (|error()| level 0), so the string `pcall` returns is ready
-for |vim.notify()| verbatim. Transforms validate before writing: a failed
-operation never leaves a half-edited buffer or a stray undo entry.
+for |vim.notify()| verbatim. Transforms validate before writing: a
+failed operation never leaves a half-edited buffer or a stray undo
+entry.
+
+==============================================================================
+HEALTH                                                        *gutenberg-health*
+
+If something misbehaves — probes that never match, keymaps that do
+nothing — start here: >vim
+  :checkhealth gutenberg
+<
+It verifies the pieces gutenberg depends on at runtime:
+
+- A supported Neovim (0.10 or newer).
+- The `markdown` and `markdown_inline` treesitter parsers. Neovim
+  bundles both since 0.10, but distributions and plugin managers can
+  shadow them with older builds.
+- The |gutenberg-queries| files: present on 'runtimepath', compiling
+  against the installed grammar version (a compile failure means the
+  parser is older or newer than the query expects), and still defining
+  every capture the modules need (a user query that replaces ours
+  instead of extending it fails loudly here).
 
 ==============================================================================
 QUERIES                                                      *gutenberg-queries*
 
-The nodes each module recognizes are declared in |treesitter-query| files
-shipped with the plugin: >
+The nodes each module recognizes are declared in |treesitter-query|
+files shipped with the plugin: >
   queries/markdown/gutenberg.scm          block constructs
   queries/markdown_inline/gutenberg.scm   inline constructs
 <
-Each capture names a construct: `@heading`, `@code_block`, `@list_item`,
-`@table`, `@link_definition`, and (inline) `@link`. To teach a module
-additional node types, place an extending query on your 'runtimepath': >query
+Each capture names a construct: `@heading`, `@code_block`,
+`@list_item`, `@table`, `@link_definition`, and (inline) `@link`. To
+teach a module additional node types, place an extending query on your
+'runtimepath': >query
   ;; extends
 
   (setext_heading) @heading
 <
 in `~/.config/nvim/queries/markdown/gutenberg.scm`. Recognition is
-extensible this way; decoding is not — `read` still only understands the
-built-in node shapes, so probes like `is_heading` accept extended nodes
-while `read` may error on them.
+extensible this way; decoding is not — `read` still only understands
+the built-in node shapes, so probes like `is_heading` accept extended
+nodes while `read` may error on them.
 
-Inline `@link` patterns must also declare which |gutenberg.link.Kind| the
-node decodes as: >query
+Inline `@link` patterns must also declare which |gutenberg.link.Kind|
+the node decodes as: >query
   ;; extends
 
   ((email_autolink) @link
@@ -133,11 +372,12 @@ API                                                              *gutenberg-api*
 ------------------------------------------------------------------------------
 LIST                                                            *gutenberg.list*
 
-Read and edit markdown list items. A list item is one row of bullet (`-`,
-`*`, `+`) or ordered (`1.`) marker plus optional checkbox and text. Nested
-items are themselves `list_item` nodes inside a child `list`.
+Read and edit markdown list items. A list item is one row of bullet
+(`-`, `*`, `+`) or ordered (`1.`) marker plus optional checkbox and
+text. Nested items are themselves `list_item` nodes inside a child
+`list`.
 
-A `gutenberg.list.Item` table has these fields: >lua
+A `gutenberg.list.Item` is a plain table: >lua
     {
       indent = '',     -- leading whitespace before the marker
       marker = '-',    -- '-', '*', '+', or e.g. '1.'
@@ -145,67 +385,89 @@ A `gutenberg.list.Item` table has these fields: >lua
       text = 'foo',    -- content after marker (and checkbox, if present)
     }
 <
-                                                  *gutenberg.list.is_list_item*
-is_list_item({ctx})
-    Whether the cursor is on a list item. Gate calls to `read` with this.
+is_list_item({ctx})                             *gutenberg.list.is_list_item()*
+    Whether the cursor is on a list item. Gate calls to `read` with
+    this.
 
-                                                          *gutenberg.list.read*
-read({ctx})
+read({ctx})                                             *gutenberg.list.read()*
     Read the item containing the cursor. Returns
-    `(gutenberg.list.Item, TSNode)`. Errors when the cursor isn't on a
-    list item.
+    `(gutenberg.list.Item, TSNode)`; pass the node to `replace`.
+    Errors when the cursor isn't on a list item.
 
-                                                        *gutenberg.list.create*
-create({fields})
-    Build an item from `{ indent?, marker?, checkbox?, text? }`. Missing
-    fields fall back to `gutenberg.list.Config` (default `marker = '-'`).
+create({fields})                                      *gutenberg.list.create()*
+    Build an item from `{ indent?, marker?, checkbox?, text? }`.
+    Missing fields fall back to |gutenberg.list.Config| (default
+    `marker = '-'`).
 
-                                                        *gutenberg.list.render*
-render({item})
+render({item})                                        *gutenberg.list.render()*
     Render an item to a single line of buffer text.
 
-                                                       *gutenberg.list.replace*
-replace({node}, {items}, {ctx})
-    Replace `node`'s marker row with the rendered `items` in a single
+replace({node}, {items}, {ctx})                      *gutenberg.list.replace()*
+    Replace {node}'s marker row with the rendered {items} in a single
     buffer update. Pass an empty list to delete the item. To insert a
     sibling, pass `{ existing, new }` (append) or `{ new, existing }`
     (prepend) — no helper needed.
 
-                                                     *gutenberg.list.read_list*
-read_list({ctx})
+read_list({ctx})                                   *gutenberg.list.read_list()*
     Read every direct sibling of the cursor's item. Returns
-    `({ item, node }[], list_node)` in document order. The `list_node` is
-    the parent `list` TSNode — pass it back to `replace_list`. Errors when
-    the cursor isn't on a list item.
+    `({ item, node }[], list_node)` in document order. The `list_node`
+    is the parent `list` TSNode — pass it back to `replace_list`.
+    Errors when the cursor isn't on a list item.
 
-                                                  *gutenberg.list.replace_list*
-replace_list({list_node}, {entries}, {ctx})
+replace_list({list_node}, {entries}, {ctx})     *gutenberg.list.replace_list()*
     Rewrite the marker rows of each entry in a single buffer update.
-    Nested children are preserved verbatim. Use to switch markers across
-    siblings (e.g. unordered → ordered): `read_list`, mutate each
-    entry's `item` with `set_marker`, then `replace_list`.
+    Nested children are preserved verbatim. Use to switch markers
+    across siblings (e.g. unordered → ordered): `read_list`, mutate
+    each entry's `item` with `set_marker`, then `replace_list`.
 
-                                                        *gutenberg.list.indent*
-indent({node}, {ctx})
-    Shift the leading whitespace of `node`'s range right by one indent
-    unit. The unit comes from `gutenberg.list.Config.indent`; when that
-    is unset (the default), it is derived from the target buffer's
-    `&expandtab` and `&tabstop`. Nested children move with the parent.
+indent({node}, {ctx})                                 *gutenberg.list.indent()*
+    Shift the leading whitespace of {node}'s range right by one indent
+    unit. The unit comes from `gutenberg.list.Config.indent`; when
+    unset (the default) it is derived from the target buffer's
+    'expandtab' and 'tabstop'. Nested children move with the parent.
     Single buffer update.
 
-                                                        *gutenberg.list.dedent*
-dedent({node}, {ctx})
-    Shift the leading whitespace of `node`'s range left by one indent
+dedent({node}, {ctx})                                 *gutenberg.list.dedent()*
+    Shift the leading whitespace of {node}'s range left by one indent
     unit (same resolution as `indent`). Errors when any non-blank line
     lacks that much leading whitespace. Single buffer update.
 
-Field accessors:                                          *gutenberg.list-accessors*
+update({fn}, {ctx})                                   *gutenberg.list.update()*
+    Read the item at the cursor, apply {fn}, and write the result back
+    in a single buffer update. {fn} may mutate the item in place (and
+    return nothing) or return a replacement list — return `{}` to
+    delete the item. Returns the written items. Errors when the cursor
+    isn't on a list item.
+
+update_list({fn}, {ctx})                         *gutenberg.list.update_list()*
+    Read the cursor item's direct siblings, apply {fn} to the entries,
+    and rewrite their marker rows in one buffer update. {fn} mutates
+    each entry's `item` in place; entries cannot be added or removed.
+    Errors when the cursor isn't on a list item.
+
+toggle_checkbox({ctx})                       *gutenberg.list.toggle_checkbox()*
+    Toggle the checkbox on the item at the cursor. Items without a
+    checkbox gain one in the configured state
+    (`gutenberg.list.Config.default_checked`); items with one flip.
+    Errors when the cursor isn't on a list item.
+
+toggle_ordered({ctx})                         *gutenberg.list.toggle_ordered()*
+    Switch the item at the cursor between ordered and unordered (see
+    `set_ordered` below). Errors when the cursor isn't on a list item.
+
+toggle_ordered_list({ctx})               *gutenberg.list.toggle_ordered_list()*
+    Switch the cursor item and all of its direct siblings between
+    ordered and unordered, renumbering from 1 when switching to
+    ordered. The direction comes from the first sibling. Errors when
+    the cursor isn't on a list item.
+
+Field accessors:                                      *gutenberg.list-accessors*
     `get_marker(item)` / `set_marker(item, marker)`
     `is_ordered(item)` / `set_ordered(item, ordered)`
-        Switch an item between ordered (`1.`, `2)`, ...) and unordered.
-        `set_ordered` uses `gutenberg.list.Config.marker` for the
-        unordered marker and `1.` for ordered. Combine with `set_marker`
-        and `replace_list` to renumber siblings.
+        Switch an item between ordered (`1.`, `2)`, ...) and
+        unordered. `set_ordered` uses `gutenberg.list.Config.marker`
+        for the unordered marker and `1.` for ordered. Combine with
+        `set_marker` and `replace_list` to renumber siblings.
     `get_checkbox(item)` / `set_checkbox(item, state)`
         Raw checkbox character. Pass nil to remove.
     `is_checked(item)` / `set_checked(item, checked)`
@@ -214,244 +476,232 @@ Field accessors:                                          *gutenberg.list-access
 ------------------------------------------------------------------------------
 HEADING                                                      *gutenberg.heading*
 
-Read and edit ATX markdown headings (`# foo`, `## bar`, ...). Setext-style
-underline headings are not supported. All functions accept an optional
-`gutenberg.Context.Partial` (see |gutenberg.context|) and default to the
-current buffer and cursor.
+Read and edit ATX markdown headings (`# foo`, `## bar`, ...).
+Setext-style underline headings are not supported.
 
-A heading is represented by a plain table:
->lua
-  ---@class gutenberg.heading.Heading
-  ---@field level integer  -- 1..6
-  ---@field text string
+A `gutenberg.heading.Heading` is a plain table: >lua
+    {
+      level = 2,        -- 1..6
+      text = 'title',   -- everything after the # markers
+    }
+<
+is_heading({ctx})                             *gutenberg.heading.is_heading()*
+    Whether the cursor is on an ATX heading. Gate calls to `read` with
+    this.
 
-is_heading({ctx})                                  *gutenberg.heading.is_heading*
-    Returns `true` when the cursor is on an ATX heading. Use this to gate
-    `read`, which errors otherwise.
+read({ctx})                                         *gutenberg.heading.read()*
+    Read the heading containing the cursor. Returns
+    `(gutenberg.heading.Heading, TSNode)`; pass the node to `replace`.
+    Errors when the cursor isn't on a heading.
 
-read({ctx})                                            *gutenberg.heading.read*
-    Returns the heading containing the cursor along with its `TSNode`
-    (type `atx_heading`). Errors when the cursor is not on a heading.
+create({fields})                                  *gutenberg.heading.create()*
+    Build a heading from `{ level?, text? }`. Missing fields fall back
+    to |gutenberg.heading.Config| (default `level = 1`). Errors when
+    `level` is outside 1..6.
 
-create({fields})                                     *gutenberg.heading.create*
-    Builds a heading from `{ level?, text? }`. Missing fields fall back to
-    `gutenberg.heading.Config` (default `level = 1`, `text = ''`).
-    Errors when `level` is outside 1..6.
+render({heading})                                 *gutenberg.heading.render()*
+    Render a heading to a single line of buffer text (`# text`).
 
-render({heading})                                    *gutenberg.heading.render*
-    Renders a heading to a single line of buffer text (`# text`).
-
-replace({node}, {headings}, {ctx})                  *gutenberg.heading.replace*
-    Replaces the range of `node` with the rendered headings in a single
+replace({node}, {headings}, {ctx})               *gutenberg.heading.replace()*
+    Replace {node}'s range with the rendered {headings} in a single
     buffer update. Pass an empty list to delete the heading.
 
-get_level({h})                                    *gutenberg.heading.get_level*
-set_level({h}, {level})                           *gutenberg.heading.set_level*
-    Read or write the heading level. `set_level` errors when `level` is
-    not an integer in 1..6.
+update({fn}, {ctx})                               *gutenberg.heading.update()*
+    Read the heading at the cursor, apply {fn}, and write the result
+    back in a single buffer update. {fn} may mutate the heading in
+    place or return a replacement list — `{}` deletes. Errors when the
+    cursor isn't on a heading.
 
-get_text({h})                                      *gutenberg.heading.get_text*
-set_text({h}, {text})                              *gutenberg.heading.set_text*
+promote({ctx})                                   *gutenberg.heading.promote()*
+demote({ctx})                                     *gutenberg.heading.demote()*
+    Raise (`##` → `#`) or sink (`#` → `##`) the heading at the cursor
+    one level. Clamped at levels 1 and 6 — a boundary call changes
+    nothing and writes nothing. Errors when the cursor isn't on a
+    heading.
+
+get_level({heading})                           *gutenberg.heading.get_level()*
+set_level({heading}, {level})                  *gutenberg.heading.set_level()*
+    Read or write the heading level. `set_level` errors when {level}
+    is not an integer in 1..6.
+
+get_text({heading})                             *gutenberg.heading.get_text()*
+set_text({heading}, {text})                     *gutenberg.heading.set_text()*
     Read or write the heading text (everything after the `#` markers).
 
-list({ctx})                                            *gutenberg.heading.list*
-    Returns every ATX heading in the buffer in document order as
+list({ctx})                                         *gutenberg.heading.list()*
+    Every ATX heading in the buffer in document order, as
     `{ heading, node }` entries. Useful for tables of contents and
     pickers.
 
-find_next({ctx}, {opts})                          *gutenberg.heading.find_next*
-find_prev({ctx}, {opts})                          *gutenberg.heading.find_prev*
-    Returns the nearest heading strictly after / before the cursor row,
-    or `nil` when none qualifies. `opts` is an optional table with
-    `min_level` and `max_level` filters. Neither helper moves the
-    cursor; the caller decides how to act on the result.
+find_next({ctx}, {opts})                       *gutenberg.heading.find_next()*
+find_prev({ctx}, {opts})                       *gutenberg.heading.find_prev()*
+    The nearest heading strictly after / before the cursor row, or nil
+    when none qualifies. {opts} is an optional table with `min_level`
+    and `max_level` filters. Neither moves the cursor; the caller
+    decides how to act on the result.
 
-find_parent({ctx})                              *gutenberg.heading.find_parent*
-    Returns the heading governing the cursor's section: the closest
-    preceding heading at a level that contains the cursor's region. When
-    the cursor is itself on a heading, returns the closest preceding
-    heading with strictly smaller level (its parent), or `nil`.
+find_parent({ctx})                           *gutenberg.heading.find_parent()*
+    The heading governing the cursor's section. When the cursor is on
+    a heading, returns the closest preceding heading with strictly
+    smaller level (its parent), or nil when no ancestor exists.
 
 ------------------------------------------------------------------------------
-TABLES                                                         *gutenberg.table*
+TABLE                                                          *gutenberg.table*
 
-GFM pipe table primitives. Read a table at the cursor, edit the in-memory
-struct, and write it back as a single buffer update.
+GFM pipe table primitives. Read a table at the cursor, edit the
+in-memory struct, and write it back as a single buffer update.
 
-                                                       *gutenberg.table.Table*
-A parsed table is a plain struct: >lua
-
-  ---@class gutenberg.table.Table
-  ---@field alignments gutenberg.table.Alignment[]
-  ---@field headers string[]
-  ---@field rows string[][]
+A `gutenberg.table.Table` is a plain table:            *gutenberg.table.Table*
+>lua
+    {
+      alignments = { 'none', 'right' },   -- per column
+      headers = { 'Item', 'Price' },      -- trimmed cell text
+      rows = { { 'apples', '1.50' } },    -- per row, then per column
+    }
 <
                                                    *gutenberg.table.Alignment*
-Per-column alignment is one of: `'none'`, `'left'`, `'center'`, `'right'`.
+Per-column alignment is one of `'none'`, `'left'`, `'center'`,
+`'right'`.
 
-                                                      *gutenberg.table.is_table()*
-`require('gutenberg.table').is_table({ctx})`
+is_table({ctx})                                   *gutenberg.table.is_table()*
+    Whether the cursor is on a pipe table. Gate calls to `read` with
+    this.
 
-Returns true if {ctx}'s cursor is on a pipe table. Gate calls to `read` with
-this. {ctx} is a `gutenberg.Context.Partial`; missing fields default to the
-current buffer and window cursor.
+read({ctx})                                           *gutenberg.table.read()*
+    Read the pipe table containing the cursor. Returns
+    `(gutenberg.table.Table, TSNode)`; pass the node to `replace`.
+    Cell text is trimmed. Errors when the cursor isn't on a pipe
+    table.
 
-                                                         *gutenberg.table.read()*
-`require('gutenberg.table').read({ctx})`
+create({fields})                                    *gutenberg.table.create()*
+    Build a table from `{ alignments?, headers?, rows? }`. With no
+    fields, returns a 1-column table with an empty header. When
+    `headers` is given but `alignments` is not, alignments default to
+    the configured `default_alignment` per header column.
 
-Reads the pipe table containing the cursor. Errors if the cursor isn't on a
-pipe table. Returns the parsed |gutenberg.table.Table| and the underlying
-`pipe_table` `TSNode`. Pass the node to `replace` to write changes back.
+render({table})                                     *gutenberg.table.render()*
+    Render {table} to a list of lines (header, delimiter, body…). Each
+    column is padded to the max width across the header, body, and a
+    3-character minimum delimiter.
 
-Cell text is trimmed.
+replace({node}, {tables}, {ctx})                   *gutenberg.table.replace()*
+    Replace {node}'s range with the rendered {tables} in a single
+    buffer update. Pass an empty list to delete. Multiple tables are
+    separated by a blank line so the markdown parser keeps them
+    distinct.
 
-                                                       *gutenberg.table.create()*
-`require('gutenberg.table').create({fields})`
+update({fn}, {ctx})                                 *gutenberg.table.update()*
+    Read the table at the cursor, apply {fn}, and write the result
+    back in a single buffer update. {fn} may mutate the table in place
+    or return a replacement list — `{}` deletes. Errors when the
+    cursor isn't on a pipe table.
 
-Constructs a |gutenberg.table.Table| from explicit fields. With no fields,
-returns a 1-column table with an empty header. When `headers` is given but
-`alignments` is not, alignments default to the configured
-`default_alignment` (see |gutenberg.config|) per header column.
+format({ctx})                                       *gutenberg.table.format()*
+    Rewrite the table at the cursor in canonical form: cells padded to
+    the widest entry, pipes aligned, alignment markers normalized. A
+    read/replace round trip with no value changes. Errors when the
+    cursor isn't on a pipe table.
 
-                                                       *gutenberg.table.render()*
-`require('gutenberg.table').render({table})`
+column_at({ctx})                                 *gutenberg.table.column_at()*
+    The 1-based column index under the cursor, or nil when the cursor
+    isn't on a pipe table. The cursor resolves to the last column
+    starting at or before it: a cursor on a `|` counts as the column
+    that pipe closes, and before the first cell counts as column 1.
 
-Renders {table} to a list of lines (header, delimiter, body…). Each column
-is padded to the max width across the header, body, and a 3-character
-minimum delimiter.
+cycle_alignment({ctx})                     *gutenberg.table.cycle_alignment()*
+    Advance the alignment of the column under the cursor one step
+    through none → left → center → right → none, rewriting the table
+    in a single buffer update. Errors when the cursor isn't on a pipe
+    table, or when the cursor column has no delimiter cell.
 
-                                                      *gutenberg.table.replace()*
-`require('gutenberg.table').replace({node}, {tables}, {ctx})`
+get_cell({table}, {row}, {col})                   *gutenberg.table.get_cell()*
+set_cell({table}, {row}, {col}, {text})           *gutenberg.table.set_cell()*
+    Read or write a cell. Row 0 is the header; rows 1..N are body
+    rows. Columns are 1-indexed. Errors on out-of-range indices.
 
-Replaces {node}'s range with the rendered {tables} in a single buffer
-update. Pass an empty list to delete. Multiple tables are separated by a
-blank line so the markdown parser keeps them distinct.
-
-                                                     *gutenberg.table.get_cell()*
-                                                     *gutenberg.table.set_cell()*
-`require('gutenberg.table').get_cell({table}, {row}, {col})`
-`require('gutenberg.table').set_cell({table}, {row}, {col}, {text})`
-
-Read or write a cell. Row 0 is the header; rows 1..N are body rows. Columns
-are 1-indexed. Errors on out-of-range indices.
-
-                                                *gutenberg.table.get_alignment()*
-                                                *gutenberg.table.set_alignment()*
-`require('gutenberg.table').get_alignment({table}, {col})`
-`require('gutenberg.table').set_alignment({table}, {col}, {alignment})`
-
-Read or write a column's |gutenberg.table.Alignment|. Errors on
-out-of-range indices.
+get_alignment({table}, {col})                *gutenberg.table.get_alignment()*
+set_alignment({table}, {col}, {alignment})   *gutenberg.table.set_alignment()*
+    Read or write a column's |gutenberg.table.Alignment|. Errors on
+    out-of-range indices.
 
 ------------------------------------------------------------------------------
 CODE BLOCK                                                *gutenberg.code_block*
 
-Read, build, and rewrite fenced markdown code blocks. Indented (4-space) code
-blocks are out of scope — fenced only.
+Read, build, and rewrite fenced markdown code blocks. Indented
+(4-space) code blocks are out of scope — fenced only.
 
-A `gutenberg.code_block.CodeBlock` table has these fields: >lua
+A `gutenberg.code_block.CodeBlock` is a plain table: >lua
     {
       indent = '',          -- leading whitespace before the opening fence
       fence = '`',          -- '`' or '~'
-      fence_length = 3,     -- count of fence chars on the opening fence (>= 3)
+      fence_length = 3,     -- fence chars on the opening fence (>= 3)
       info_string = 'lua',  -- everything after the opening fence (verbatim)
-      content = { 'foo' },  -- one entry per content line, no trailing newline
+      content = { 'foo' },  -- one entry per content line
     }
 <
-The `info_string` is stored as-is so callers can carry attributes (for example
-`{lua title="x"}`) through a round trip. Use |gutenberg.code_block.get_language|
-and |gutenberg.code_block.set_language| to manipulate just the leading token.
+The `info_string` is stored as-is so callers can carry attributes (for
+example `{lua title="x"}`) through a round trip. Use `get_language` /
+`set_language` to manipulate just the leading token.
 
-                                       *gutenberg.code_block.is_code_block()*
-code_block.is_code_block({ctx})
-    Returns true when the cursor is inside a fenced code block (opening
-    fence, content, or closing fence). Gate calls to `read` with this.
+is_code_block({ctx})                    *gutenberg.code_block.is_code_block()*
+    Whether the cursor is inside a fenced code block (opening fence,
+    content, or closing fence). Gate calls to `read` with this.
 
-    Parameters: ~
-      • {ctx} (`gutenberg.Context.Partial?`)
+read({ctx})                                      *gutenberg.code_block.read()*
+    Read the fenced code block containing the cursor. Returns
+    `(gutenberg.code_block.CodeBlock, TSNode)`; pass the node to
+    `replace`. Errors when the cursor isn't on a code block.
 
-    Return: ~
-      `boolean`
+create({fields})                               *gutenberg.code_block.create()*
+    Build a block from `{ indent?, fence?, fence_length?,
+    info_string?, content? }`. Missing fields fall back to
+    |gutenberg.code_block.Config|.
 
-                                              *gutenberg.code_block.read()*
-code_block.read({ctx})
-    Read the fenced code block containing the cursor. Errors when the cursor
-    isn't on a code block. The returned `TSNode` captures the block's range
-    for |gutenberg.code_block.replace|.
+render({block})                                *gutenberg.code_block.render()*
+    Render a block to buffer lines: opening fence, content, closing
+    fence. Content lines are emitted verbatim — they carry their own
+    indentation and are NOT auto-escalated when they look like a
+    closing fence. Bump `fence_length` yourself when content contains
+    a longer-or-equal run of the fence character.
 
-    Parameters: ~
-      • {ctx} (`gutenberg.Context.Partial?`)
+replace({node}, {blocks}, {ctx})              *gutenberg.code_block.replace()*
+    Replace {node}'s range with the rendered {blocks} in a single
+    buffer update. Pass an empty list to delete the block.
 
-    Return: ~
-      `gutenberg.code_block.CodeBlock, TSNode`
+update({fn}, {ctx})                            *gutenberg.code_block.update()*
+    Read the block at the cursor, apply {fn}, and write the result
+    back in a single buffer update. {fn} may mutate the block in place
+    or return a replacement list — `{}` deletes. Errors when the
+    cursor isn't on a fenced code block.
 
-                                            *gutenberg.code_block.create()*
-code_block.create({fields})
-    Construct a code block from explicit fields. Missing fields fall back
-    to the configured defaults (see |gutenberg.setup|).
-
-    Parameters: ~
-      • {fields} (`{ indent?, fence?, fence_length?, info_string?, content? }`)
-
-    Return: ~
-      `gutenberg.code_block.CodeBlock`
-
-                                            *gutenberg.code_block.render()*
-code_block.render({block})
-    Render a block to buffer lines: opening fence, content, closing fence.
-    Content lines are emitted verbatim — they carry their own indentation
-    and are NOT auto-escalated when they look like a closing fence. Bump
-    `fence_length` yourself when content contains a longer-or-equal run of
-    the fence character.
-
-    Parameters: ~
-      • {block} (`gutenberg.code_block.CodeBlock`)
-
-    Return: ~
-      `string[]`
-
-                                           *gutenberg.code_block.replace()*
-code_block.replace({node}, {blocks}, {ctx})
-    Replace `node`'s range with the rendered blocks in a single buffer
-    update. Pass an empty `blocks` list to delete the node.
-
-    Parameters: ~
-      • {node}   (`TSNode`)
-      • {blocks} (`gutenberg.code_block.CodeBlock[]`)
-      • {ctx}    (`gutenberg.Context.Partial?`)
-
-                                  *gutenberg.code_block.get_info_string()*
-                                  *gutenberg.code_block.set_info_string()*
-code_block.get_info_string({block})
-code_block.set_info_string({block}, {info_string})
+                                      *gutenberg.code_block.get_info_string()*
+                                      *gutenberg.code_block.set_info_string()*
+get_info_string({block})
+set_info_string({block}, {info_string})
     Read or replace the entire info string verbatim.
 
-                                       *gutenberg.code_block.get_content()*
-                                       *gutenberg.code_block.set_content()*
-code_block.get_content({block})
-code_block.set_content({block}, {lines})
+get_content({block})                      *gutenberg.code_block.get_content()*
+set_content({block}, {lines})             *gutenberg.code_block.set_content()*
     Read or replace the block's content lines.
 
-                                      *gutenberg.code_block.get_language()*
-code_block.get_language({block})
-    The first whitespace-delimited token of the info string. Returns `''`
-    when the info string is empty.
+get_language({block})                    *gutenberg.code_block.get_language()*
+    The first whitespace-delimited token of the info string. Returns
+    `''` when the info string is empty.
 
-                                      *gutenberg.code_block.set_language()*
-code_block.set_language({block}, {language})
-    Replace the leading-language portion of the info string, preserving any
-    trailing attributes after the first whitespace. For example, calling
-    `set_language(block, 'python')` on an info string `'lua title="x"'`
-    yields `'python title="x"'`.
+set_language({block}, {language})        *gutenberg.code_block.set_language()*
+    Replace the leading-language portion of the info string,
+    preserving any trailing attributes after the first whitespace:
+    `set_language(block, 'python')` on `'lua title="x"'` yields
+    `'python title="x"'`.
 
 ------------------------------------------------------------------------------
-LINK                                                          *gutenberg.link*
+LINK                                                            *gutenberg.link*
 
-Parse and edit markdown links. Distinguishes inline links, reference links
-(full, collapsed, shortcut), and URI autolinks. Images are not links and are
-skipped.
+Parse and edit markdown links. Distinguishes inline links, reference
+links (full, collapsed, shortcut), and URI autolinks. Images are not
+links and are skipped.
 
-                                                           *gutenberg.link.Kind*
+                                                          *gutenberg.link.Kind*
 `gutenberg.link.Kind` is one of:
     `'inline'`              `[text](url)` (with optional title)
     `'reference_full'`      `[text][label]`
@@ -459,99 +709,121 @@ skipped.
     `'reference_shortcut'`  `[text]`
     `'autolink'`            `<url>`
 
-Special characters in `text`, `url`, `title`, and `label` are NOT escaped by
-`render`. Pre-escape any user input as needed.
+Special characters in `text`, `url`, `title`, and `label` are NOT
+escaped by `render`. Pre-escape any user input as needed.
 
-                                                          *gutenberg.link.is_link()*
-gutenberg.link.is_link({ctx})
-    Whether the cursor (or `ctx`) is inside a link node. Returns false on
-    images and link reference definitions.
+is_link({ctx})                                     *gutenberg.link.is_link()*
+    Whether the cursor is inside a link node. Returns false on images
+    and link reference definitions.
 
-                                                             *gutenberg.link.read()*
-gutenberg.link.read({ctx})
-    Read the link at the cursor. Returns `(gutenberg.link.Link, TSNode)`.
-    The node spans the link's exact range — pass it to `replace`. Errors if
-    the cursor is not on a link; gate with `is_link`.
+read({ctx})                                           *gutenberg.link.read()*
+    Read the link at the cursor. Returns
+    `(gutenberg.link.Link, TSNode)`. The node spans the link's exact
+    range — pass it to `replace`. Errors when the cursor isn't on a
+    link.
 
-                                                           *gutenberg.link.create()*
-gutenberg.link.create({fields})
-    Construct a `gutenberg.link.Link` from explicit fields. `kind` defaults
-    to `gutenberg.link.Config.default_kind` (`'inline'`). Validates that the
-    fields required for the kind are present; errors otherwise.
+create({fields})                                    *gutenberg.link.create()*
+    Build a `gutenberg.link.Link` from explicit fields. `kind`
+    defaults to `gutenberg.link.Config.default_kind` (`'inline'`).
+    Validates that the fields required for the kind are present;
+    errors otherwise.
 
-                                                           *gutenberg.link.render()*
-gutenberg.link.render({link})
+render({link})                                      *gutenberg.link.render()*
     Render a link to its literal markdown source. Reverse of `read`.
 
-                                                          *gutenberg.link.replace()*
-gutenberg.link.replace({node}, {links}, {ctx})
-    Replace `node`'s exact range with the rendered concatenation of `links`.
-    Pass an empty list to delete the link. Multiple links concatenate with
-    no separator — the caller adds spacing if needed. Single buffer write.
+replace({node}, {links}, {ctx})                    *gutenberg.link.replace()*
+    Replace {node}'s exact range with the rendered concatenation of
+    {links}. Pass an empty list to delete the link. Multiple links
+    concatenate with no separator — the caller adds spacing if needed.
+    Single buffer write.
 
-                                                    *gutenberg.link.is_definition()*
-gutenberg.link.is_definition({ctx})
-    Whether the cursor is inside a `link_reference_definition`.
+update({fn}, {ctx})                                 *gutenberg.link.update()*
+    Read the link at the cursor, apply {fn}, and write the result back
+    in a single buffer update. {fn} may mutate the link in place or
+    return a replacement list — `{}` deletes. Errors when the cursor
+    isn't on a link.
 
-                                                  *gutenberg.link.read_definition()*
-gutenberg.link.read_definition({ctx})
+is_definition({ctx})                         *gutenberg.link.is_definition()*
+    Whether the cursor is inside a link reference definition.
+
+read_definition({ctx})                     *gutenberg.link.read_definition()*
     Read the definition at the cursor. Returns
-    `(gutenberg.link.Definition, TSNode)`. Errors if not on a definition.
+    `(gutenberg.link.Definition, TSNode)`. Errors when the cursor
+    isn't on a definition.
 
-                                                      *gutenberg.link.definitions()*
-gutenberg.link.definitions({ctx})
-    Return every link reference definition in the buffer, keyed by the
+definitions({ctx})                             *gutenberg.link.definitions()*
+    Every link reference definition in the buffer, keyed by the
     lowercased label.
 
-                                                          *gutenberg.link.resolve()*
-gutenberg.link.resolve({link}, {defs})
-    Look up a `reference_*` link's definition in `defs`. Returns nil for
-    inline and autolink kinds, or when the label is not defined.
+resolve({link}, {defs})                            *gutenberg.link.resolve()*
+    Look up a `reference_*` link's definition in {defs}. Returns nil
+    for inline and autolink kinds, or when the label is not defined.
 
-Field accessors:                                          *gutenberg.link-accessors*
+Field accessors:                                      *gutenberg.link-accessors*
     `get_url(link)` / `set_url(link, url)`
-        Inline and autolink only; setters error on `reference_*` (use a
-        definition instead).
+        Inline and autolink only; setters error on `reference_*` (use
+        a definition instead).
     `get_text(link)` / `set_text(link, text)`
         Errors on autolinks. Setting text on collapsed/shortcut also
         updates the label so renders stay correct.
     `get_title(link)` / `set_title(link, title)`
         Inline links only. Pass nil to remove.
     `get_label(link)` / `set_label(link, label)`
-        Reference_full only; collapsed/shortcut derive their label from
-        text, so set via `set_text` instead.
+        Reference_full only; collapsed/shortcut derive their label
+        from text, so set via `set_text` instead.
     `get_kind(link)` / `set_kind(link, kind)`
-        Mutate the kind in place. The caller is responsible for ensuring
-        the link's other fields match the new kind's requirements.
+        Mutate the kind in place. The caller is responsible for
+        ensuring the link's other fields match the new kind's
+        requirements.
 
 ------------------------------------------------------------------------------
 CONFIG                                                        *gutenberg.config*
 
-`gutenberg.setup` accepts a `gutenberg.Config` table:
+|gutenberg.setup| accepts a `gutenberg.Config` table. Defaults:
 >lua
-  ---@class gutenberg.list.Config
-  ---@field marker string           -- default bullet marker for new items
-  ---@field indent? string          -- indent unit for `indent` / `dedent`; nil = derive from buffer `&expandtab`/`&tabstop`
-  ---@field default_checked boolean -- state of a newly-inserted checkbox (default true)
+  {
+    list = {
+      marker = '-',            -- bullet for new/unordered items
+      indent = nil,            -- indent unit; nil = derive from buffer
+      default_checked = true,  -- state of a newly-inserted checkbox
+    },
+    heading = {
+      level = 1,               -- default level for created headings
+    },
+    table = {
+      default_alignment = 'none',
+    },
+    code_block = {
+      fence = '`',             -- '`' or '~'
+      fence_length = 3,        -- >= 3
+    },
+    link = {
+      default_kind = 'inline', -- kind used when create() omits one
+    },
+  }
+<
+                                                      *gutenberg.list.Config*
+`list.marker`             Default bullet marker for new items.
+`list.indent`             Whitespace unit for |gutenberg.list.indent()| /
+                        |gutenberg.list.dedent()|. When nil (default),
+                        derived per call from the target buffer's
+                        'expandtab' and 'tabstop'.
+`list.default_checked`    State of a newly-inserted checkbox, used by
+                        |gutenberg.list.toggle_checkbox()| when
+                        promoting a bare item.
 
-  ---@class gutenberg.heading.Config
-  ---@field level integer  -- default level for new headings (1..6)
+                                                   *gutenberg.heading.Config*
+`heading.level`           Default level for new headings (1..6).
 
-  ---@class gutenberg.table.Config
-  ---@field default_alignment gutenberg.table.Alignment
+                                                     *gutenberg.table.Config*
+`table.default_alignment` |gutenberg.table.Alignment| for new tables.
 
-  ---@class gutenberg.code_block.Config
-  ---@field fence gutenberg.code_block.Fence  -- default fence char
-  ---@field fence_length integer              -- default fence length (>= 3)
+                                                *gutenberg.code_block.Config*
+`code_block.fence`        Default fence character for new blocks.
+`code_block.fence_length` Default fence length (>= 3).
 
-  ---@class gutenberg.link.Config
-  ---@field default_kind gutenberg.link.Kind
-
-  ---@class gutenberg.Config
-  ---@field list gutenberg.list.Config
-  ---@field heading gutenberg.heading.Config
-  ---@field table gutenberg.table.Config
-  ---@field code_block gutenberg.code_block.Config
-  ---@field link gutenberg.link.Config
+                                                      *gutenberg.link.Config*
+`link.default_kind`       |gutenberg.link.Kind| used when
+                        |gutenberg.link.create()| omits one.
 
 vim: ft=help tw=78:
