@@ -53,60 +53,71 @@ local function apply_keymaps(bufnr)
     jump_to(node)
   end, 'previous heading')
 
-  map('<leader>mp', gutenberg.heading.promote, 'promote heading')
-  map('<leader>md', gutenberg.heading.demote, 'demote heading')
+  map('<leader>m<', function()
+    if gutenberg.heading.is_heading() then
+      gutenberg.heading.promote()
+    elseif gutenberg.list.is_list_item() then
+      local _, node = gutenberg.list.read()
+      gutenberg.list.dedent(node)
+    else
+      error('gutenberg: no heading or list item under the cursor', 0)
+    end
+  end, 'promote heading / dedent list item')
+
+  map('<leader>m>', function()
+    if gutenberg.heading.is_heading() then
+      gutenberg.heading.demote()
+    elseif gutenberg.list.is_list_item() then
+      local _, node = gutenberg.list.read()
+      gutenberg.list.indent(node)
+    else
+      error('gutenberg: no heading or list item under the cursor', 0)
+    end
+  end, 'demote heading / indent list item')
 
   map('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
   map('<leader>mo', gutenberg.list.toggle_ordered_list, 'toggle ordered list')
 
-  map('<leader>m>', function()
-    local _, node = gutenberg.list.read()
-    gutenberg.list.indent(node)
-  end, 'indent list item')
-
-  map('<leader>m<', function()
-    local _, node = gutenberg.list.read()
-    gutenberg.list.dedent(node)
-  end, 'dedent list item')
-
   map('<leader>mf', gutenberg.table.format, 'format table')
   map('<leader>ma', gutenberg.table.cycle_alignment, 'cycle column alignment')
 
-  map('<leader>mc', function()
-    local block = gutenberg.code_block.read()
-    vim.ui.input({
-      prompt = 'Language: ',
-      default = gutenberg.code_block.get_language(block),
-    }, function(input)
-      if input == nil then
-        return
-      end
-      notify_errors(function()
-        gutenberg.code_block.update(function(b)
-          gutenberg.code_block.set_language(b, input)
+  map('<leader>me', function()
+    if gutenberg.link.is_link() then
+      local lnk = gutenberg.link.read()
+      vim.ui.input({
+        prompt = 'URL: ',
+        default = gutenberg.link.get_url(lnk) or '',
+      }, function(input)
+        if input == nil then
+          return
+        end
+        notify_errors(function()
+          gutenberg.link.update(function(l)
+            gutenberg.link.set_url(l, input)
+          end)
         end)
       end)
-    end)
-  end, 'set code block language')
-
-  map('<leader>ml', function()
-    local lnk = gutenberg.link.read()
-    vim.ui.input({
-      prompt = 'URL: ',
-      default = gutenberg.link.get_url(lnk) or '',
-    }, function(input)
-      if input == nil then
-        return
-      end
-      notify_errors(function()
-        gutenberg.link.update(function(l)
-          gutenberg.link.set_url(l, input)
+    elseif gutenberg.code_block.is_code_block() then
+      local block = gutenberg.code_block.read()
+      vim.ui.input({
+        prompt = 'Language: ',
+        default = gutenberg.code_block.get_language(block),
+      }, function(input)
+        if input == nil then
+          return
+        end
+        notify_errors(function()
+          gutenberg.code_block.update(function(b)
+            gutenberg.code_block.set_language(b, input)
+          end)
         end)
       end)
-    end)
-  end, 'set link URL')
+    else
+      error('gutenberg: no link or code block under the cursor', 0)
+    end
+  end, 'edit link URL / code block language')
 
-  map('<leader>mL', function()
+  map('<leader>mE', function()
     local lnk = gutenberg.link.read()
     vim.ui.input({
       prompt = 'Text: ',
@@ -121,7 +132,7 @@ local function apply_keymaps(bufnr)
         end)
       end)
     end)
-  end, 'set link text')
+  end, 'edit link text')
 end
 
 --- Open the tour in the current window. Any previous tour buffer is

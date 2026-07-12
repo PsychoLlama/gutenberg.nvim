@@ -17,8 +17,8 @@ If a lesson does nothing at all, run `:checkhealth gutenberg`.
 
 ## Lesson 1: Promote and Demote Headings
 
-`<leader>mp` promotes the heading under the cursor (`##` becomes `#`)
-and `<leader>md` demotes it (`#` becomes `##`). Both stop at the
+`<leader>m<` promotes the heading under the cursor (`##` becomes `#`)
+and `<leader>m>` demotes it (`#` becomes `##`). Both stop at the
 boundaries, levels 1 and 6.
 
 **Practice:** put your cursor on the heading below, demote it to
@@ -109,11 +109,11 @@ right-align it — watch the delimiter row change.
 
 ## Lesson 7: Code Blocks
 
-`<leader>mc` prompts for the fenced code block's language and rewrites
+`<leader>me` prompts for the fenced code block's language and rewrites
 the opening fence in place.
 
 **Practice:** put your cursor inside the block below, press
-`<leader>mc`, and tag it as `python`.
+`<leader>me`, and tag it as `python`.
 
 ```
 def greet(name):
@@ -124,7 +124,7 @@ def greet(name):
 
 ## Lesson 8: Links
 
-`<leader>ml` edits the URL of the link under the cursor; `<leader>mL`
+`<leader>me` edits the URL of the link under the cursor; `<leader>mE`
 edits its text.
 
 **Practice:** point [this editor](https://example.com) at

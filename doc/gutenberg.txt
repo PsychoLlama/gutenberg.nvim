@@ -155,12 +155,18 @@ MDX buffers and surfaces failures as notifications:
     [h            jump to previous heading
 
   Codemods ~
-    <leader>mp    promote heading        <leader>md    demote heading
+    <leader>m<    promote heading / dedent list item
+    <leader>m>    demote heading / indent list item
     <leader>mx    toggle checkbox        <leader>mo    toggle ordered list
-    <leader>m>    indent list item       <leader>m<    dedent list item
     <leader>mf    format table           <leader>ma    cycle column alignment
-    <leader>mc    set code block language
-    <leader>ml    set link URL           <leader>mL    set link text
+    <leader>me    edit link URL / code block language
+    <leader>mE    edit link text
+
+Semantically related actions share one binding and dispatch on what's
+under the cursor — the `is_*` probes make the gate a two-line branch.
+`<leader>m<` moves the construct up the hierarchy whether that means
+promoting a heading or dedenting a list item; `<leader>me` edits the
+salient attribute of whatever the cursor is on.
 >lua
   vim.api.nvim_create_autocmd('FileType', {
     pattern = { 'markdown', 'markdown.mdx', 'mdx' },
@@ -199,65 +205,75 @@ MDX buffers and surfaces failures as notifications:
         jump_to(node)
       end, 'previous heading')
 
-      -- Headings
-      map('<leader>mp', gutenberg.heading.promote, 'promote heading')
-      map('<leader>md', gutenberg.heading.demote, 'demote heading')
+      -- Hierarchy: headings and list items share a depth axis.
+      map('<leader>m<', function()
+        if gutenberg.heading.is_heading() then
+          gutenberg.heading.promote()
+        elseif gutenberg.list.is_list_item() then
+          local _, node = gutenberg.list.read()
+          gutenberg.list.dedent(node)
+        else
+          error('gutenberg: no heading or list item under the cursor', 0)
+        end
+      end, 'promote heading / dedent list item')
+
+      map('<leader>m>', function()
+        if gutenberg.heading.is_heading() then
+          gutenberg.heading.demote()
+        elseif gutenberg.list.is_list_item() then
+          local _, node = gutenberg.list.read()
+          gutenberg.list.indent(node)
+        else
+          error('gutenberg: no heading or list item under the cursor', 0)
+        end
+      end, 'demote heading / indent list item')
 
       -- Lists
       map('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
       map('<leader>mo', gutenberg.list.toggle_ordered_list, 'toggle ordered list')
 
-      map('<leader>m>', function()
-        local _, node = gutenberg.list.read()
-        gutenberg.list.indent(node)
-      end, 'indent list item')
-
-      map('<leader>m<', function()
-        local _, node = gutenberg.list.read()
-        gutenberg.list.dedent(node)
-      end, 'dedent list item')
-
       -- Tables
       map('<leader>mf', gutenberg.table.format, 'format table')
       map('<leader>ma', gutenberg.table.cycle_alignment, 'cycle alignment')
 
-      -- Code blocks
-      map('<leader>mc', function()
-        local block = gutenberg.code_block.read()
-        vim.ui.input({
-          prompt = 'Language: ',
-          default = gutenberg.code_block.get_language(block),
-        }, function(input)
-          if input == nil then
-            return
-          end
-          notify_errors(function()
-            gutenberg.code_block.update(function(b)
-              gutenberg.code_block.set_language(b, input)
+      -- Attributes: edit the salient field of the construct at the cursor.
+      map('<leader>me', function()
+        if gutenberg.link.is_link() then
+          local link = gutenberg.link.read()
+          vim.ui.input({
+            prompt = 'URL: ',
+            default = gutenberg.link.get_url(link) or '',
+          }, function(input)
+            if input == nil then
+              return
+            end
+            notify_errors(function()
+              gutenberg.link.update(function(l)
+                gutenberg.link.set_url(l, input)
+              end)
             end)
           end)
-        end)
-      end, 'set code block language')
-
-      -- Links
-      map('<leader>ml', function()
-        local link = gutenberg.link.read()
-        vim.ui.input({
-          prompt = 'URL: ',
-          default = gutenberg.link.get_url(link) or '',
-        }, function(input)
-          if input == nil then
-            return
-          end
-          notify_errors(function()
-            gutenberg.link.update(function(l)
-              gutenberg.link.set_url(l, input)
+        elseif gutenberg.code_block.is_code_block() then
+          local block = gutenberg.code_block.read()
+          vim.ui.input({
+            prompt = 'Language: ',
+            default = gutenberg.code_block.get_language(block),
+          }, function(input)
+            if input == nil then
+              return
+            end
+            notify_errors(function()
+              gutenberg.code_block.update(function(b)
+                gutenberg.code_block.set_language(b, input)
+              end)
             end)
           end)
-        end)
-      end, 'set link URL')
+        else
+          error('gutenberg: no link or code block under the cursor', 0)
+        end
+      end, 'edit link URL / code block language')
 
-      map('<leader>mL', function()
+      map('<leader>mE', function()
         local link = gutenberg.link.read()
         vim.ui.input({
           prompt = 'Text: ',
@@ -272,7 +288,7 @@ MDX buffers and surfaces failures as notifications:
             end)
           end)
         end)
-      end, 'set link text')
+      end, 'edit link text')
     end,
   })
 <
