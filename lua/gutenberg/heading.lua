@@ -67,12 +67,12 @@ function M.read(ctx)
   ctx = context.resolve(ctx)
   local node = ts.find_at_cursor(ctx, 'heading')
   if node == nil then
-    error('cursor is not on a heading')
+    error('gutenberg: cursor is not on a heading', 0)
   end
 
   local heading = decode(node, ctx.bufnr)
   if heading == nil then
-    error('atx_heading is missing a level marker')
+    error('gutenberg: atx_heading is missing a level marker', 0)
   end
 
   return heading, node
@@ -134,7 +134,11 @@ end
 ---@param level integer
 function M.set_level(heading, level)
   if level < 1 or level > 6 or level ~= math.floor(level) then
-    error('heading level must be an integer in 1..6, got ' .. tostring(level))
+    error(
+      'gutenberg: heading level must be an integer in 1..6, got '
+        .. tostring(level),
+      0
+    )
   end
   heading.level = level
 end

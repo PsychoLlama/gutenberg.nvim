@@ -26,7 +26,12 @@ end
 local function get_query(lang)
   local query = vim.treesitter.query.get(lang, 'gutenberg')
   if query == nil then
-    error('queries/' .. lang .. '/gutenberg.scm not found on runtimepath')
+    error(
+      'gutenberg: queries/'
+        .. lang
+        .. '/gutenberg.scm not found on runtimepath',
+      0
+    )
   end
   return query
 end
@@ -43,7 +48,7 @@ local function capture_id(query, capture)
       return id
     end
   end
-  error('gutenberg query has no @' .. capture .. ' capture')
+  error('gutenberg: query has no @' .. capture .. ' capture', 0)
 end
 
 --- Innermost node captured as `id` whose range contains (row, col), with

@@ -14,6 +14,8 @@
 
 ## API Design
 
+- API first, not API only: behaviors are designed to be bound to keymaps, but every one must be drivable through the public API (see RECIPES in `doc/gutenberg.txt` for the intended edge).
+- Modules never call `vim.notify` — they `error('gutenberg: ...', 0)`. Level 0 drops the file:line prefix so the message doubles as UI copy; the keymap edge decides whether to `pcall` + notify. Errors fire before any buffer write so failed transforms stay atomic.
 - Lean powerful, not simple for its own sake. Favor composable primitives over convenience methods.
 - APIs should be explicit. For example: instead of `toggle_checkbox`, have `set_checked` and `is_checked`.
   - Only add sugar APIs if they can build on lower-level public primitives, and only if they carry their weight.

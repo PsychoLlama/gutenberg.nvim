@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Error messages are prefixed with `gutenberg:` and thrown without
+  file/line position info (`error(msg, 0)`), so keymaps can `pcall` an
+  operation and pass the message straight to `vim.notify`. See
+  `:h gutenberg-errors` for the error contract and `:h gutenberg-recipes`
+  for the intended keymap patterns.
 - Construct recognition is now driven by runtime treesitter query files
   (`queries/markdown/gutenberg.scm` and
   `queries/markdown_inline/gutenberg.scm`) instead of hardcoded node-type

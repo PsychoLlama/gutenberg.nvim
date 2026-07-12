@@ -74,7 +74,10 @@ local function read_definition_node(node, bufnr)
   local label_node = ts.child(node, 'link_label')
   local dest_node = ts.child(node, 'link_destination')
   if label_node == nil or dest_node == nil then
-    error('link_reference_definition is missing required children')
+    error(
+      'gutenberg: link_reference_definition is missing required children',
+      0
+    )
   end
   local label =
     strip_label_brackets(vim.treesitter.get_node_text(label_node, bufnr))
@@ -108,12 +111,12 @@ local function read_link_node(node, bufnr, kind)
     and kind ~= 'reference_collapsed'
     and kind ~= 'reference_shortcut'
   then
-    error('link pattern declared unknown kind: ' .. kind)
+    error('gutenberg: link pattern declared unknown kind: ' .. kind, 0)
   end
 
   local text_node = ts.child(node, 'link_text')
   if text_node == nil then
-    error(kind .. ' link is missing link_text')
+    error('gutenberg: ' .. kind .. ' link is missing link_text', 0)
   end
   local text = vim.treesitter.get_node_text(text_node, bufnr)
 
@@ -137,7 +140,7 @@ local function read_link_node(node, bufnr, kind)
   if kind == 'reference_full' then
     local label_node = ts.child(node, 'link_label')
     if label_node == nil then
-      error('full_reference_link is missing link_label')
+      error('gutenberg: full_reference_link is missing link_label', 0)
     end
     local label =
       strip_label_brackets(vim.treesitter.get_node_text(label_node, bufnr))
@@ -164,13 +167,14 @@ function M.read(ctx)
   ctx = context.resolve(ctx)
   local node, metadata = ts.find_inline_at_cursor(ctx, 'link')
   if node == nil then
-    error('cursor is not on a link')
+    error('gutenberg: cursor is not on a link', 0)
   end
   local kind = metadata and metadata.kind
   if type(kind) ~= 'string' then
     error(
-      'link pattern is missing `kind` metadata; see '
-        .. 'queries/markdown_inline/gutenberg.scm'
+      'gutenberg: link pattern is missing `kind` metadata; see '
+        .. 'queries/markdown_inline/gutenberg.scm',
+      0
     )
   end
   return read_link_node(node, ctx.bufnr, kind), node
@@ -191,7 +195,7 @@ function M.read_definition(ctx)
   ctx = context.resolve(ctx)
   local node = ts.find_at_cursor(ctx, 'link_definition')
   if node == nil then
-    error('cursor is not on a link reference definition')
+    error('gutenberg: cursor is not on a link reference definition', 0)
   end
   return read_definition_node(node, ctx.bufnr), node
 end
@@ -229,28 +233,28 @@ local function validate_create(fields)
   local kind = fields.kind
   if kind == 'inline' then
     if fields.text == nil then
-      error('inline links require `text`')
+      error('gutenberg: inline links require `text`', 0)
     end
     if fields.url == nil then
-      error('inline links require `url`')
+      error('gutenberg: inline links require `url`', 0)
     end
   elseif kind == 'reference_full' then
     if fields.text == nil then
-      error('reference_full links require `text`')
+      error('gutenberg: reference_full links require `text`', 0)
     end
     if fields.label == nil then
-      error('reference_full links require `label`')
+      error('gutenberg: reference_full links require `label`', 0)
     end
   elseif kind == 'reference_collapsed' or kind == 'reference_shortcut' then
     if fields.text == nil then
-      error(kind .. ' links require `text`')
+      error('gutenberg: ' .. kind .. ' links require `text`', 0)
     end
   elseif kind == 'autolink' then
     if fields.url == nil then
-      error('autolinks require `url`')
+      error('gutenberg: autolinks require `url`', 0)
     end
   else
-    error('unknown link kind: ' .. tostring(kind))
+    error('gutenberg: unknown link kind: ' .. tostring(kind), 0)
   end
 end
 
@@ -314,7 +318,7 @@ function M.render(link)
   if kind == 'autolink' then
     return '<' .. (link.url or '') .. '>'
   end
-  error('unknown link kind: ' .. tostring(kind))
+  error('gutenberg: unknown link kind: ' .. tostring(kind), 0)
 end
 
 --- Replace `node`'s exact range with the rendered concatenation of `links`.
@@ -352,7 +356,12 @@ function M.set_url(link, url)
     link.url = url
     return
   end
-  error('cannot set url on ' .. kind .. ' link; use a definition instead')
+  error(
+    'gutenberg: cannot set url on '
+      .. kind
+      .. ' link; use a definition instead',
+    0
+  )
 end
 
 --- Get the visible text of a link. Returns nil for autolinks.
@@ -368,7 +377,7 @@ end
 ---@param text string
 function M.set_text(link, text)
   if link.kind == 'autolink' then
-    error('autolinks have no separate text')
+    error('gutenberg: autolinks have no separate text', 0)
   end
   link.text = text
   -- Collapsed/shortcut keep label === text. Update both so renders stay correct.
@@ -392,7 +401,7 @@ end
 ---@param title string?
 function M.set_title(link, title)
   if link.kind ~= 'inline' then
-    error('only inline links support a title')
+    error('gutenberg: only inline links support a title', 0)
   end
   link.title = title
 end
@@ -416,9 +425,12 @@ function M.set_label(link, label)
   if
     link.kind == 'reference_collapsed' or link.kind == 'reference_shortcut'
   then
-    error('label is derived from text on ' .. link.kind .. ' links')
+    error(
+      'gutenberg: label is derived from text on ' .. link.kind .. ' links',
+      0
+    )
   end
-  error('cannot set label on ' .. link.kind .. ' link')
+  error('gutenberg: cannot set label on ' .. link.kind .. ' link', 0)
 end
 
 --- Get the link kind.

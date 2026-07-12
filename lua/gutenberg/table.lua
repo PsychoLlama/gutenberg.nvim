@@ -65,7 +65,7 @@ function M.read(ctx)
   ctx = context.resolve(ctx)
   local node = ts.find_at_cursor(ctx, 'table')
   if node == nil then
-    error('cursor is not on a pipe table')
+    error('gutenberg: cursor is not on a pipe table', 0)
   end
 
   local headers = {}
@@ -252,16 +252,16 @@ end
 function M.get_cell(tbl, row, col)
   if row == 0 then
     if col < 1 or col > #tbl.headers then
-      error('column index out of range: ' .. col)
+      error('gutenberg: column index out of range: ' .. col, 0)
     end
     return tbl.headers[col]
   end
   local body = tbl.rows[row]
   if body == nil then
-    error('row index out of range: ' .. row)
+    error('gutenberg: row index out of range: ' .. row, 0)
   end
   if col < 1 or col > #body then
-    error('column index out of range: ' .. col)
+    error('gutenberg: column index out of range: ' .. col, 0)
   end
   return body[col]
 end
@@ -275,17 +275,17 @@ end
 function M.set_cell(tbl, row, col, text)
   if row == 0 then
     if col < 1 or col > #tbl.headers then
-      error('column index out of range: ' .. col)
+      error('gutenberg: column index out of range: ' .. col, 0)
     end
     tbl.headers[col] = text
     return
   end
   local body = tbl.rows[row]
   if body == nil then
-    error('row index out of range: ' .. row)
+    error('gutenberg: row index out of range: ' .. row, 0)
   end
   if col < 1 or col > #body then
-    error('column index out of range: ' .. col)
+    error('gutenberg: column index out of range: ' .. col, 0)
   end
   body[col] = text
 end
@@ -296,7 +296,7 @@ end
 ---@return gutenberg.table.Alignment
 function M.get_alignment(tbl, col)
   if col < 1 or col > #tbl.alignments then
-    error('column index out of range: ' .. col)
+    error('gutenberg: column index out of range: ' .. col, 0)
   end
   return tbl.alignments[col]
 end
@@ -307,7 +307,7 @@ end
 ---@param alignment gutenberg.table.Alignment
 function M.set_alignment(tbl, col, alignment)
   if col < 1 or col > #tbl.alignments then
-    error('column index out of range: ' .. col)
+    error('gutenberg: column index out of range: ' .. col, 0)
   end
   tbl.alignments[col] = alignment
 end

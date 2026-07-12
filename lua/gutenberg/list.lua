@@ -35,7 +35,7 @@ local MARKER_TYPES = {
 local function decode_item(node, bufnr)
   local marker_node = ts.child(node, MARKER_TYPES)
   if marker_node == nil then
-    error('list_item is missing a marker')
+    error('gutenberg: list_item is missing a marker', 0)
   end
 
   local sr = node:range()
@@ -84,7 +84,7 @@ function M.read(ctx)
   ctx = context.resolve(ctx)
   local node = ts.find_at_cursor(ctx, 'list_item')
   if node == nil then
-    error('cursor is not on a list item')
+    error('gutenberg: cursor is not on a list item', 0)
   end
   return decode_item(node, ctx.bufnr), node
 end
@@ -147,7 +147,7 @@ function M.read_list(ctx)
   ctx = context.resolve(ctx)
   local list_node = find_list(ctx)
   if list_node == nil then
-    error('cursor is not on a list item')
+    error('gutenberg: cursor is not on a list item', 0)
   end
 
   ---@type { item: gutenberg.list.Item, node: TSNode }[]
@@ -180,7 +180,7 @@ function M.replace_list(list_node, entries, ctx)
     local item_sr = entry.node:range()
     local idx = item_sr - sr + 1
     if idx < 1 or idx > #lines then
-      error('entry node falls outside the list range')
+      error('gutenberg: entry node falls outside the list range', 0)
     end
     lines[idx] = M.render(entry.item)
   end
@@ -254,7 +254,12 @@ function M.dedent(node, ctx)
     if line:match('%S') ~= nil then
       local prefix = line:sub(1, strip)
       if #prefix < strip or prefix:match('^%s+$') == nil then
-        error('cannot dedent: line lacks ' .. strip .. ' leading whitespace')
+        error(
+          'gutenberg: cannot dedent: line lacks '
+            .. strip
+            .. ' leading whitespace',
+          0
+        )
       end
       lines[i] = line:sub(strip + 1)
     end

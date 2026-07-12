@@ -33,7 +33,7 @@ local function find_parts(node)
     end
   end
   if opening == nil or closing == nil then
-    error('fenced_code_block is missing a delimiter')
+    error('gutenberg: fenced_code_block is missing a delimiter', 0)
   end
   return opening, info, closing
 end
@@ -54,7 +54,7 @@ function M.read(ctx)
   ctx = context.resolve(ctx)
   local node = ts.find_at_cursor(ctx, 'code_block')
   if node == nil then
-    error('cursor is not on a fenced code block')
+    error('gutenberg: cursor is not on a fenced code block', 0)
   end
 
   local opening, info, closing = find_parts(node)
@@ -74,7 +74,7 @@ function M.read(ctx)
   local indent, fence_run =
     opening_line:sub(1, open_end_col):match('^(.-)([`~]+)$')
   if fence_run == nil then
-    error('fenced_code_block_delimiter has no fence character')
+    error('gutenberg: fenced_code_block_delimiter has no fence character', 0)
   end
   local fence_char = fence_run:sub(1, 1)
   local fence_length = #fence_run

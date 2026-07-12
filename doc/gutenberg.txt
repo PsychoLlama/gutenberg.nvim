@@ -30,8 +30,75 @@ first reference.
 ------------------------------------------------------------------------------
 KEYBINDINGS                                              *gutenberg-keybindings*
 
+gutenberg ships no keymaps. Every behavior is designed to be bound to one,
+but exposed API-first so the same functions serve keymaps, autocommands,
+and programmatic rewrites alike. See |gutenberg-recipes| for the intended
+binding patterns and |gutenberg-errors| for how failures are surfaced.
+
 ==============================================================================
 RECIPES                                                      *gutenberg-recipes*
+
+Bind behaviors from buffer-local keymaps, e.g. in a markdown |FileType|
+autocommand. The shape is always the same: gate with the module's `is_*`
+probe, `read` into a value, mutate it in memory, and `replace` it in a
+single write.
+>lua
+  vim.keymap.set('n', '<leader>mx', function()
+    local list = require('gutenberg').list
+    if not list.is_list_item() then
+      return
+    end
+    local item, node = list.read()
+    local checked = list.is_checked(item)
+    if checked == nil then
+      local config = require('gutenberg').config.get()
+      list.set_checked(item, config.list.default_checked)
+    else
+      list.set_checked(item, not checked)
+    end
+    list.replace(node, { item })
+  end, { buffer = true, desc = 'gutenberg: toggle checkbox' })
+<
+Operations that depend on the value — not just the cursor position — can
+fail even after the probe passes (see |gutenberg-errors|). Wrap those in
+`pcall` and hand the message to |vim.notify()|:
+>lua
+  vim.keymap.set('n', '<leader>m<', function()
+    local list = require('gutenberg').list
+    if not list.is_list_item() then
+      return
+    end
+    local _, node = list.read()
+    local ok, err = pcall(list.dedent, node)
+    if not ok then
+      vim.notify(err, vim.log.levels.ERROR)
+    end
+  end, { buffer = true, desc = 'gutenberg: dedent list item' })
+<
+==============================================================================
+ERRORS                                                        *gutenberg-errors*
+
+gutenberg never calls |vim.notify()|. Functions throw, and the binding
+edge decides whether a failure is user-facing — the same API must serve
+interactive keymaps and silent programmatic rewrites, and only the caller
+knows which one it is.
+
+Errors fall into two classes:
+
+- Contract violations: calling `read` without gating on the `is_*` probe,
+  invalid arguments (|gutenberg.heading.set_level| outside 1..6, bad cell
+  indices), or a broken install (missing |gutenberg-queries| files). These
+  indicate a bug in the calling code or the setup; fix the code.
+- Inapplicable operations: a correctly-gated action that doesn't apply to
+  the value under the cursor — |gutenberg.list.dedent| on an unindented
+  item, or `set_url` on a `reference_*` link (|gutenberg.link-accessors|).
+  These are expected at the keymap edge; wrap them in `pcall` and surface
+  the message (see |gutenberg-recipes|).
+
+Messages are prefixed with `gutenberg:` and thrown without position
+information (|error()| level 0), so the string `pcall` returns is ready
+for |vim.notify()| verbatim. Transforms validate before writing: a failed
+operation never leaves a half-edited buffer or a stray undo entry.
 
 ==============================================================================
 QUERIES                                                      *gutenberg-queries*

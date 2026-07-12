@@ -1,5 +1,6 @@
 gutenberg	gutenberg.txt	/*gutenberg*
 gutenberg-api	gutenberg.txt	/*gutenberg-api*
+gutenberg-errors	gutenberg.txt	/*gutenberg-errors*
 gutenberg-keybindings	gutenberg.txt	/*gutenberg-keybindings*
 gutenberg-overview	gutenberg.txt	/*gutenberg-overview*
 gutenberg-queries	gutenberg.txt	/*gutenberg-queries*
