@@ -56,6 +56,37 @@ local function read_row_cells(node, bufnr)
   return cells
 end
 
+--- Decode a `pipe_table` node into a table struct.
+---@param node TSNode
+---@param bufnr integer
+---@return gutenberg.table.Table
+local function decode(node, bufnr)
+  local headers = {}
+  local alignments = {}
+  local rows = {}
+
+  for child in node:iter_children() do
+    local t = child:type()
+    if t == 'pipe_table_header' then
+      headers = read_row_cells(child, bufnr)
+    elseif t == 'pipe_table_delimiter_row' then
+      for cell in child:iter_children() do
+        if cell:type() == 'pipe_table_delimiter_cell' then
+          table.insert(alignments, read_alignment(cell))
+        end
+      end
+    elseif t == 'pipe_table_row' then
+      table.insert(rows, read_row_cells(child, bufnr))
+    end
+  end
+
+  return {
+    alignments = alignments,
+    headers = headers,
+    rows = rows,
+  }
+end
+
 --- Read the pipe table containing the cursor. Errors if the cursor isn't on
 --- a pipe table; validate with `is_table` first. The returned `TSNode`
 --- captures the table's range for `replace`.
@@ -67,32 +98,7 @@ function M.read(ctx)
   if node == nil then
     error('gutenberg: cursor is not on a pipe table', 0)
   end
-
-  local headers = {}
-  local alignments = {}
-  local rows = {}
-
-  for child in node:iter_children() do
-    local t = child:type()
-    if t == 'pipe_table_header' then
-      headers = read_row_cells(child, ctx.bufnr)
-    elseif t == 'pipe_table_delimiter_row' then
-      for cell in child:iter_children() do
-        if cell:type() == 'pipe_table_delimiter_cell' then
-          table.insert(alignments, read_alignment(cell))
-        end
-      end
-    elseif t == 'pipe_table_row' then
-      table.insert(rows, read_row_cells(child, ctx.bufnr))
-    end
-  end
-
-  return {
-    alignments = alignments,
-    headers = headers,
-    rows = rows,
-  },
-    node
+  return decode(node, ctx.bufnr), node
 end
 
 --- Construct a pipe table from explicit fields. When `headers` is given but
@@ -362,6 +368,266 @@ function M.column_at(ctx)
     end
   end
   return nil
+end
+
+--- The row index under the cursor: 0 for the header (and delimiter)
+--- rows, 1..N for body rows, nil when the cursor isn't on a pipe
+--- table.
+---@param ctx? gutenberg.Context.Partial
+---@return integer?
+function M.row_at(ctx)
+  ctx = context.resolve(ctx)
+  local node = ts.find_at_cursor(ctx, 'table')
+  if node == nil then
+    return nil
+  end
+
+  local row = ctx.cursor[1] - 1
+  local body = 0
+  for child in node:iter_children() do
+    local t = child:type()
+    if ROW_TYPES[t] then
+      local sr = child:range()
+      if t == 'pipe_table_row' then
+        body = body + 1
+        if sr == row then
+          return body
+        end
+      elseif sr == row then
+        return 0
+      end
+    end
+  end
+  return nil
+end
+
+--- Nearest pipe table starting strictly after the cursor row. Returns
+--- nil when no table qualifies.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.table.Table?, TSNode?
+function M.find_next(ctx)
+  ctx = context.resolve(ctx)
+  local row = ctx.cursor[1] - 1
+  for _, node in ipairs(ts.collect(ctx.bufnr, 'table')) do
+    local sr = node:range()
+    if sr > row then
+      return decode(node, ctx.bufnr), node
+    end
+  end
+  return nil, nil
+end
+
+--- Nearest pipe table starting strictly before the cursor row. Returns
+--- nil when no table qualifies.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.table.Table?, TSNode?
+function M.find_prev(ctx)
+  ctx = context.resolve(ctx)
+  local row = ctx.cursor[1] - 1
+  ---@type TSNode?
+  local match
+  for _, node in ipairs(ts.collect(ctx.bufnr, 'table')) do
+    local sr = node:range()
+    if sr < row then
+      match = node
+    else
+      break
+    end
+  end
+  if match == nil then
+    return nil, nil
+  end
+  return decode(match, ctx.bufnr), match
+end
+
+--- The buffer range of a cell's trimmed text: charwise, multibyte-safe
+--- endpoints. Row 0 is the header; rows 1..N are body rows. Returns
+--- nil when the cell doesn't exist or holds only whitespace.
+---@param node TSNode A `pipe_table` node (see `read`).
+---@param row integer
+---@param col integer
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.Range?
+function M.cell_range(node, row, col, ctx)
+  ctx = context.resolve(ctx)
+
+  ---@type TSNode?
+  local row_node
+  local body = 0
+  for child in node:iter_children() do
+    local t = child:type()
+    if row == 0 and t == 'pipe_table_header' then
+      row_node = child
+      break
+    elseif t == 'pipe_table_row' then
+      body = body + 1
+      if body == row then
+        row_node = child
+        break
+      end
+    end
+  end
+  if row_node == nil then
+    return nil
+  end
+
+  ---@type TSNode?
+  local cell_node
+  local count = 0
+  for cell in row_node:iter_children() do
+    if cell:type() == 'pipe_table_cell' then
+      count = count + 1
+      if count == col then
+        cell_node = cell
+        break
+      end
+    end
+  end
+  if cell_node == nil then
+    return nil
+  end
+
+  local text = vim.treesitter.get_node_text(cell_node, ctx.bufnr)
+  local trimmed = vim.trim(text)
+  if trimmed == '' then
+    return nil
+  end
+  local leading = #(text:match('^%s*'))
+
+  local sr, sc = cell_node:range()
+  -- The stop column points at the first byte of the last character so
+  -- consumers can treat it as an inclusive cursor position.
+  local last_byte = leading + #trimmed
+  local stop_col = sc + last_byte - 1 + vim.str_utf_start(text, last_byte)
+  return {
+    mode = 'char',
+    start = { sr + 1, sc + leading },
+    stop = { sr + 1, stop_col },
+  }
+end
+
+--- Insert `row` (a list of cell texts) so it lands at body-row `index`
+--- (1-based; `#rows + 1` appends). In-memory codemod — write it back
+--- with `replace`. Errors on out-of-range indices.
+---@param tbl gutenberg.table.Table
+---@param index integer
+---@param row string[]
+function M.insert_row(tbl, index, row)
+  if index < 1 or index > #tbl.rows + 1 or index ~= math.floor(index) then
+    error('gutenberg: row index out of range: ' .. index, 0)
+  end
+  table.insert(tbl.rows, index, row)
+end
+
+--- Delete the body row at `index`. Row 0 (the header) cannot be
+--- deleted. In-memory codemod. Errors on out-of-range indices.
+---@param tbl gutenberg.table.Table
+---@param index integer
+function M.delete_row(tbl, index)
+  if index == 0 then
+    error('gutenberg: cannot delete the header row', 0)
+  end
+  if index < 1 or index > #tbl.rows or index ~= math.floor(index) then
+    error('gutenberg: row index out of range: ' .. index, 0)
+  end
+  table.remove(tbl.rows, index)
+end
+
+--- Move the body row at `from` to position `to`. In-memory codemod.
+--- Errors on out-of-range indices.
+---@param tbl gutenberg.table.Table
+---@param from integer
+---@param to integer
+function M.move_row(tbl, from, to)
+  for _, index in ipairs({ from, to }) do
+    if index < 1 or index > #tbl.rows or index ~= math.floor(index) then
+      error('gutenberg: row index out of range: ' .. index, 0)
+    end
+  end
+  local row = table.remove(tbl.rows, from)
+  table.insert(tbl.rows, to, row)
+end
+
+--- Insert a column so it lands at `index` (1-based; `#headers + 1`
+--- appends). `fields.cells` fills body cells top-down; missing cells
+--- default to `''` and the alignment to the configured
+--- `default_alignment`. In-memory codemod. Errors on out-of-range
+--- indices.
+---@param tbl gutenberg.table.Table
+---@param index integer
+---@param fields? { header?: string, alignment?: gutenberg.table.Alignment, cells?: string[] }
+function M.insert_column(tbl, index, fields)
+  fields = fields or {}
+  if index < 1 or index > #tbl.headers + 1 or index ~= math.floor(index) then
+    error('gutenberg: column index out of range: ' .. index, 0)
+  end
+
+  local config = require('gutenberg.config').get().table
+  table.insert(tbl.headers, index, fields.header or '')
+  table.insert(
+    tbl.alignments,
+    math.min(index, #tbl.alignments + 1),
+    fields.alignment or config.default_alignment
+  )
+
+  local cells = fields.cells or {}
+  for i, row in ipairs(tbl.rows) do
+    while #row < index - 1 do
+      table.insert(row, '')
+    end
+    table.insert(row, index, cells[i] or '')
+  end
+end
+
+--- Delete the column at `index` across the header, alignments, and
+--- every body row. The last remaining column cannot be deleted.
+--- In-memory codemod. Errors on out-of-range indices.
+---@param tbl gutenberg.table.Table
+---@param index integer
+function M.delete_column(tbl, index)
+  if index < 1 or index > #tbl.headers or index ~= math.floor(index) then
+    error('gutenberg: column index out of range: ' .. index, 0)
+  end
+  if #tbl.headers == 1 then
+    error('gutenberg: cannot delete the only column', 0)
+  end
+
+  table.remove(tbl.headers, index)
+  if index <= #tbl.alignments then
+    table.remove(tbl.alignments, index)
+  end
+  for _, row in ipairs(tbl.rows) do
+    if index <= #row then
+      table.remove(row, index)
+    end
+  end
+end
+
+--- Move the column at `from` to position `to` across the header,
+--- alignments, and every body row. Ragged rows are padded with empty
+--- cells first so the move is well-defined. In-memory codemod. Errors
+--- on out-of-range indices.
+---@param tbl gutenberg.table.Table
+---@param from integer
+---@param to integer
+function M.move_column(tbl, from, to)
+  for _, index in ipairs({ from, to }) do
+    if index < 1 or index > #tbl.headers or index ~= math.floor(index) then
+      error('gutenberg: column index out of range: ' .. index, 0)
+    end
+  end
+
+  table.insert(tbl.headers, to, table.remove(tbl.headers, from))
+  while #tbl.alignments < #tbl.headers do
+    table.insert(tbl.alignments, 'none')
+  end
+  table.insert(tbl.alignments, to, table.remove(tbl.alignments, from))
+  for _, row in ipairs(tbl.rows) do
+    while #row < #tbl.headers do
+      table.insert(row, '')
+    end
+    table.insert(row, to, table.remove(row, from))
+  end
 end
 
 return M

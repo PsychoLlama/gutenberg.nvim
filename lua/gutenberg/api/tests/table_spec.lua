@@ -561,4 +561,300 @@ describe('gutenberg.api.table', function()
       end)
     end)
   end)
+
+  local GRID = {
+    '| a  | b  |',
+    '| -- | -- |',
+    '| a1 | b1 |',
+    '| a2 | b2 |',
+  }
+
+  describe('row_at', function()
+    it('returns 0 on the header row', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        assert.equal(0, tbl.row_at(ctx))
+      end)
+    end)
+
+    it('returns 0 on the delimiter row', function()
+      with_buffer(GRID, { 2, 2 }, function(ctx)
+        assert.equal(0, tbl.row_at(ctx))
+      end)
+    end)
+
+    it('returns the 1-based body row index', function()
+      with_buffer(GRID, { 4, 2 }, function(ctx)
+        assert.equal(2, tbl.row_at(ctx))
+      end)
+    end)
+
+    it('returns nil off-table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.is_nil(tbl.row_at(ctx))
+      end)
+    end)
+  end)
+
+  describe('find_next / find_prev', function()
+    local TWO_TABLES = {
+      '| a |',
+      '| - |',
+      '',
+      'paragraph',
+      '',
+      '| b |',
+      '| - |',
+    }
+
+    it('find_next returns the nearest table after the cursor', function()
+      with_buffer(TWO_TABLES, { 4, 0 }, function(ctx)
+        local t, node = tbl.find_next(ctx)
+        assert.same({ 'b' }, t.headers)
+        assert.equal(5, (node:range()))
+      end)
+    end)
+
+    it('find_next returns nil with no table below', function()
+      with_buffer(TWO_TABLES, { 6, 0 }, function(ctx)
+        local t = tbl.find_next(ctx)
+        assert.is_nil(t)
+      end)
+    end)
+
+    it('find_prev returns the nearest table before the cursor', function()
+      with_buffer(TWO_TABLES, { 4, 0 }, function(ctx)
+        local t, node = tbl.find_prev(ctx)
+        assert.same({ 'a' }, t.headers)
+        assert.equal(0, (node:range()))
+      end)
+    end)
+
+    it('find_prev returns nil with no table above', function()
+      with_buffer(TWO_TABLES, { 1, 0 }, function(ctx)
+        local t = tbl.find_prev(ctx)
+        assert.is_nil(t)
+      end)
+    end)
+  end)
+
+  describe('cell_range', function()
+    it('covers the trimmed text of a body cell', function()
+      with_buffer(GRID, { 1, 0 }, function(ctx)
+        local _, node = tbl.read(ctx)
+        local range = tbl.cell_range(node, 1, 2, ctx)
+        assert.same({
+          mode = 'char',
+          start = { 3, 7 },
+          stop = { 3, 8 },
+        }, range)
+      end)
+    end)
+
+    it('addresses the header with row 0', function()
+      with_buffer(GRID, { 3, 0 }, function(ctx)
+        local _, node = tbl.read(ctx)
+        local range = tbl.cell_range(node, 0, 1, ctx)
+        assert.same({
+          mode = 'char',
+          start = { 1, 2 },
+          stop = { 1, 2 },
+        }, range)
+      end)
+    end)
+
+    it('points the stop at the first byte of a multibyte tail', function()
+      with_buffer({ '| héé |', '| --- |' }, { 1, 0 }, function(ctx)
+        local _, node = tbl.read(ctx)
+        local range = tbl.cell_range(node, 0, 1, ctx)
+        -- 'héé' starts at byte col 2; the final 'é' occupies bytes 5-6.
+        assert.same({
+          mode = 'char',
+          start = { 1, 2 },
+          stop = { 1, 5 },
+        }, range)
+      end)
+    end)
+
+    it('returns nil for a blank cell', function()
+      with_buffer({ '| a |  |', '| - | - |' }, { 1, 0 }, function(ctx)
+        local _, node = tbl.read(ctx)
+        assert.is_nil(tbl.cell_range(node, 0, 2, ctx))
+      end)
+    end)
+
+    it('returns nil for a missing cell', function()
+      with_buffer(GRID, { 1, 0 }, function(ctx)
+        local _, node = tbl.read(ctx)
+        assert.is_nil(tbl.cell_range(node, 1, 3, ctx))
+        assert.is_nil(tbl.cell_range(node, 9, 1, ctx))
+      end)
+    end)
+  end)
+
+  describe('insert_row', function()
+    it('inserts at a body index', function()
+      local t = tbl.create({ headers = { 'a' }, rows = { { '1' }, { '3' } } })
+      tbl.insert_row(t, 2, { '2' })
+      assert.same({ { '1' }, { '2' }, { '3' } }, t.rows)
+    end)
+
+    it('appends with index #rows + 1', function()
+      local t = tbl.create({ headers = { 'a' }, rows = { { '1' } } })
+      tbl.insert_row(t, 2, { '2' })
+      assert.same({ { '1' }, { '2' } }, t.rows)
+    end)
+
+    it('errors on out-of-range indices', function()
+      local t = tbl.create({ headers = { 'a' } })
+      assert.error_matches(function()
+        tbl.insert_row(t, 0, { 'x' })
+      end, 'row index out of range')
+      assert.error_matches(function()
+        tbl.insert_row(t, 3, { 'x' })
+      end, 'row index out of range')
+    end)
+  end)
+
+  describe('delete_row', function()
+    it('deletes the body row at index', function()
+      local t = tbl.create({ headers = { 'a' }, rows = { { '1' }, { '2' } } })
+      tbl.delete_row(t, 1)
+      assert.same({ { '2' } }, t.rows)
+    end)
+
+    it('refuses to delete the header row', function()
+      local t = tbl.create({ headers = { 'a' }, rows = { { '1' } } })
+      assert.error_matches(function()
+        tbl.delete_row(t, 0)
+      end, 'cannot delete the header row')
+    end)
+
+    it('errors on out-of-range indices', function()
+      local t = tbl.create({ headers = { 'a' }, rows = { { '1' } } })
+      assert.error_matches(function()
+        tbl.delete_row(t, 2)
+      end, 'row index out of range')
+    end)
+  end)
+
+  describe('move_row', function()
+    it('moves a body row to a new position', function()
+      local t = tbl.create({
+        headers = { 'a' },
+        rows = { { '1' }, { '2' }, { '3' } },
+      })
+      tbl.move_row(t, 1, 3)
+      assert.same({ { '2' }, { '3' }, { '1' } }, t.rows)
+    end)
+
+    it('errors on out-of-range indices', function()
+      local t = tbl.create({ headers = { 'a' }, rows = { { '1' } } })
+      assert.error_matches(function()
+        tbl.move_row(t, 1, 2)
+      end, 'row index out of range')
+    end)
+  end)
+
+  describe('insert_column', function()
+    it('inserts header, alignment, and cells at index', function()
+      local t = tbl.create({
+        headers = { 'a', 'c' },
+        alignments = { 'left', 'right' },
+        rows = { { 'a1', 'c1' } },
+      })
+      tbl.insert_column(t, 2, {
+        header = 'b',
+        alignment = 'center',
+        cells = { 'b1' },
+      })
+      assert.same({ 'a', 'b', 'c' }, t.headers)
+      assert.same({ 'left', 'center', 'right' }, t.alignments)
+      assert.same({ { 'a1', 'b1', 'c1' } }, t.rows)
+    end)
+
+    it(
+      'defaults missing fields to blanks and the configured alignment',
+      function()
+        local t = tbl.create({ headers = { 'a' }, rows = { { 'a1' } } })
+        tbl.insert_column(t, 2)
+        assert.same({ 'a', '' }, t.headers)
+        assert.same({ 'none', 'none' }, t.alignments)
+        assert.same({ { 'a1', '' } }, t.rows)
+      end
+    )
+
+    it('pads ragged rows up to the insertion point', function()
+      local t = tbl.create({
+        headers = { 'a', 'b' },
+        rows = { { 'a1' } },
+      })
+      tbl.insert_column(t, 3, { header = 'c', cells = { 'c1' } })
+      assert.same({ { 'a1', '', 'c1' } }, t.rows)
+    end)
+
+    it('errors on out-of-range indices', function()
+      local t = tbl.create({ headers = { 'a' } })
+      assert.error_matches(function()
+        tbl.insert_column(t, 3)
+      end, 'column index out of range')
+    end)
+  end)
+
+  describe('delete_column', function()
+    it('deletes the column across header, alignments, and rows', function()
+      local t = tbl.create({
+        headers = { 'a', 'b' },
+        alignments = { 'left', 'right' },
+        rows = { { 'a1', 'b1' }, { 'a2' } },
+      })
+      tbl.delete_column(t, 1)
+      assert.same({ 'b' }, t.headers)
+      assert.same({ 'right' }, t.alignments)
+      assert.same({ { 'b1' }, {} }, t.rows)
+    end)
+
+    it('refuses to delete the only column', function()
+      local t = tbl.create({ headers = { 'a' } })
+      assert.error_matches(function()
+        tbl.delete_column(t, 1)
+      end, 'cannot delete the only column')
+    end)
+
+    it('errors on out-of-range indices', function()
+      local t = tbl.create({ headers = { 'a', 'b' } })
+      assert.error_matches(function()
+        tbl.delete_column(t, 3)
+      end, 'column index out of range')
+    end)
+  end)
+
+  describe('move_column', function()
+    it('moves the column across header, alignments, and rows', function()
+      local t = tbl.create({
+        headers = { 'a', 'b', 'c' },
+        alignments = { 'left', 'center', 'right' },
+        rows = { { 'a1', 'b1', 'c1' } },
+      })
+      tbl.move_column(t, 3, 1)
+      assert.same({ 'c', 'a', 'b' }, t.headers)
+      assert.same({ 'right', 'left', 'center' }, t.alignments)
+      assert.same({ { 'c1', 'a1', 'b1' } }, t.rows)
+    end)
+
+    it('pads ragged rows before moving', function()
+      local t = tbl.create({
+        headers = { 'a', 'b' },
+        rows = { { 'a1' } },
+      })
+      tbl.move_column(t, 2, 1)
+      assert.same({ { '', 'a1' } }, t.rows)
+    end)
+
+    it('errors on out-of-range indices', function()
+      local t = tbl.create({ headers = { 'a' } })
+      assert.error_matches(function()
+        tbl.move_column(t, 1, 2)
+      end, 'column index out of range')
+    end)
+  end)
 end)
