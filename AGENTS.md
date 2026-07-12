@@ -14,6 +14,10 @@
 
 ## API Design
 
+- Every public function is one of three kinds. Keep a new API cleanly in one bucket — a probe that edits, or a codemod that answers questions, is a design smell:
+  - **Interpretation** answers questions about the document without changing it: the `is_*` probes, `read`, `get_*` accessors, `resolve`.
+  - **Navigation** locates constructs: `heading.list`, `find_next` / `find_prev` / `find_parent`. Returns values and nodes; never moves the cursor — jumping is the keymap edge's job.
+  - **Codemods** produce text or change the buffer: `create` / `render`, `set_*` mutations on in-memory values, `replace`, and the cursor-level sugar verbs that compose read → mutate → replace.
 - API first, not API only: behaviors are designed to be bound to keymaps, but every one must be drivable through the public API (see RECIPES in `doc/gutenberg.txt` for the intended edge).
 - Modules never call `vim.notify` — they `error('gutenberg: ...', 0)`. Level 0 drops the file:line prefix so the message doubles as UI copy; the keymap edge decides whether to `pcall` + notify. Errors fire before any buffer write so failed transforms stay atomic.
 - Lean powerful, not simple for its own sake. Favor composable primitives over convenience methods.
