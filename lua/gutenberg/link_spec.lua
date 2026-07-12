@@ -134,6 +134,15 @@ describe('gutenberg.link', function()
       end)
     end)
 
+    it(
+      'returns true in the leading indent of an indented definition',
+      function()
+        with_buffer({ '  [L]: https://x.example' }, { 1, 0 }, function(ctx)
+          assert.is_true(link.is_definition(ctx))
+        end)
+      end
+    )
+
     it('returns false inside a regular link', function()
       with_buffer({ '[foo](bar)' }, { 1, 1 }, function(ctx)
         assert.is_false(link.is_definition(ctx))
