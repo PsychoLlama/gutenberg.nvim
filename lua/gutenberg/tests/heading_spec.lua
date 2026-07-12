@@ -1,6 +1,6 @@
 local heading = require('gutenberg.heading')
 
-local with_buffer = require('gutenberg.spec_utils').with_buffer
+local with_buffer = require('gutenberg.tests.utils').with_buffer
 
 describe('gutenberg.heading', function()
   describe('render', function()

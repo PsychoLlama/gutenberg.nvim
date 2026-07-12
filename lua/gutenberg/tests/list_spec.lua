@@ -1,5 +1,5 @@
 local list = require('gutenberg.list')
-local with_buffer = require('gutenberg.spec_utils').with_buffer
+local with_buffer = require('gutenberg.tests.utils').with_buffer
 
 describe('gutenberg.list', function()
   describe('render', function()

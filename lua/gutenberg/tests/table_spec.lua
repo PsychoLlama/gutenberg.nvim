@@ -1,6 +1,6 @@
 local tbl = require('gutenberg.table')
 
-local with_buffer = require('gutenberg.spec_utils').with_buffer
+local with_buffer = require('gutenberg.tests.utils').with_buffer
 
 describe('gutenberg.table', function()
   describe('render', function()

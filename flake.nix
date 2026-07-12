@@ -19,25 +19,40 @@
       eachSystem = lib.flip lib.mapAttrs (
         lib.genAttrs (import systems) (system: nixpkgs.legacyPackages.${system})
       );
+
+      # Every `tests/` directory anywhere under `dir`. `fileFilter` only
+      # sees a file's own name, not its ancestors, so we walk the tree to
+      # catch test dirs at any depth rather than hard-coding their paths.
+      testDirsUnder =
+        dir:
+        lib.concatLists (
+          lib.mapAttrsToList (
+            name: type:
+            if type != "directory" then
+              [ ]
+            else if name == "tests" then
+              [ (dir + "/${name}") ]
+            else
+              testDirsUnder (dir + "/${name}")
+          ) (builtins.readDir dir)
+        );
     in
 
     {
       packages = eachSystem (
-        system: pkgs:
-        let
-          sources = lib.fileset.unions [
-            ./lua
-            ./doc
-          ];
-          specs = lib.fileset.fileFilter (file: lib.hasSuffix "_spec.lua" file.name) ./.;
-        in
-        {
+        system: pkgs: {
           default = pkgs.vimUtils.buildVimPlugin {
             pname = "gutenberg.nvim";
             version = self.shortRev or "latest";
+            # Specs and their support live in `tests/` directories beside
+            # the modules they cover; drop every such directory so the
+            # packaged plugin ships only runtime source and docs.
             src = lib.fileset.toSource {
               root = ./.;
-              fileset = lib.fileset.difference sources specs;
+              fileset = lib.fileset.difference (lib.fileset.unions [
+                ./lua
+                ./doc
+              ]) (lib.fileset.unions (testDirsUnder ./lua ++ testDirsUnder ./doc));
             };
           };
         }

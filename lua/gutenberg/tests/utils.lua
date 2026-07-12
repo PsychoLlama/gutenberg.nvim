@@ -1,10 +1,11 @@
---- Test support shared by the `*_spec.lua` suites. Internal — not part
---- of the public API.
+--- Test support shared by the `*_spec.lua` suites in this `tests/`
+--- directory. Internal — not part of the public API and not shipped in
+--- the package.
 
----@class gutenberg.spec_utils
+---@class gutenberg.tests.utils
 local M = {}
 
----@class gutenberg.spec_utils.BufferOpts
+---@class gutenberg.tests.utils.BufferOpts
 ---@field expandtab? boolean Defaults to true.
 ---@field tabstop? integer Defaults to 2.
 
@@ -16,7 +17,7 @@ local M = {}
 ---@param lines string[]
 ---@param cursor [integer, integer]
 ---@param fn fun(ctx: gutenberg.Context)
----@param opts? gutenberg.spec_utils.BufferOpts
+---@param opts? gutenberg.tests.utils.BufferOpts
 function M.with_buffer(lines, cursor, fn, opts)
   opts = opts or {}
   local bufnr = vim.api.nvim_create_buf(false, true)

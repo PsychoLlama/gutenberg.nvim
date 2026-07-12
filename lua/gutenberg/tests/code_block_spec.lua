@@ -1,6 +1,6 @@
 local code_block = require('gutenberg.code_block')
 
-local with_buffer = require('gutenberg.spec_utils').with_buffer
+local with_buffer = require('gutenberg.tests.utils').with_buffer
 
 describe('gutenberg.code_block', function()
   describe('render', function()
