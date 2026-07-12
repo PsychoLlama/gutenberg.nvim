@@ -144,4 +144,74 @@ describe('gutenberg.heading', function()
       end)
     end)
   end)
+
+  describe('next / prev', function()
+    local DOC = {
+      '# one',
+      'body',
+      '## two',
+      'body',
+      '# three',
+    }
+
+    --- Show the scratch buffer in the current window so cursor-moving
+    --- motions have a window to act on.
+    ---@param ctx gutenberg.Context
+    local function display(ctx)
+      vim.api.nvim_win_set_buf(0, ctx.bufnr)
+      vim.api.nvim_win_set_cursor(0, ctx.cursor)
+    end
+
+    it('next moves the cursor to the following heading', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        local found = heading.next(ctx)
+        assert.equal('two', found.text)
+        assert.same({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next steps count headings', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        heading.next({ bufnr = ctx.bufnr, cursor = ctx.cursor, count = 2 })
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next clamps an overshooting count at the last heading', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        heading.next({ bufnr = ctx.bufnr, cursor = ctx.cursor, count = 9 })
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next returns nil and stays put with nothing below', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        display(ctx)
+        local found = heading.next(ctx)
+        assert.is_nil(found)
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('prev moves the cursor to the preceding heading', function()
+      with_buffer(DOC, { 4, 0 }, function(ctx)
+        display(ctx)
+        local found = heading.prev(ctx)
+        assert.equal('two', found.text)
+        assert.same({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('respects level filters', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        local found = heading.next(ctx, { max_level = 1 })
+        assert.equal('three', found.text)
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+  end)
 end)

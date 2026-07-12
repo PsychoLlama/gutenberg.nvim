@@ -95,4 +95,57 @@ function M.demote(ctx)
   return shift(1, ctx)
 end
 
+--- Step `ctx.count` headings via `find` (an `api.find_next`-shaped
+--- function) and move the current window's cursor to the last one
+--- reached. Overshooting clamps to the furthest match; no match at all
+--- leaves the cursor alone and returns nil.
+---@param find fun(ctx: gutenberg.Context.Partial, opts?: { min_level?: integer, max_level?: integer }): gutenberg.heading.Heading?, TSNode?
+---@param ctx gutenberg.Context
+---@param opts? { min_level?: integer, max_level?: integer }
+---@return gutenberg.heading.Heading?, TSNode?
+local function jump(find, ctx, opts)
+  ---@type gutenberg.heading.Heading?, TSNode?
+  local heading, node
+  local probe = { bufnr = ctx.bufnr, cursor = ctx.cursor }
+  for _ = 1, ctx.count do
+    local h, n = find(probe, opts)
+    if n == nil then
+      break
+    end
+    heading, node = h, n
+    local row, col = n:range()
+    probe = { bufnr = ctx.bufnr, cursor = { row + 1, col } }
+  end
+
+  if node == nil then
+    return nil, nil
+  end
+  local row, col = node:range()
+  vim.api.nvim_win_set_cursor(0, { row + 1, col })
+  return heading, node
+end
+
+--- Move the cursor to the `ctx.count`-th heading after it, clamping at
+--- the last one. Unlike everything in `gutenberg.api`, this MOVES the
+--- current window's cursor — it exists to be a motion. Returns the
+--- heading landed on, or nil (cursor untouched) when no heading
+--- follows. {opts} filters by level like `gutenberg.api.heading.find_next`.
+---@param ctx? gutenberg.Context.Partial
+---@param opts? { min_level?: integer, max_level?: integer }
+---@return gutenberg.heading.Heading?, TSNode?
+function M.next(ctx, opts)
+  return jump(api.find_next, context.resolve(ctx), opts)
+end
+
+--- Move the cursor to the `ctx.count`-th heading before it, clamping
+--- at the first one. Moves the current window's cursor; returns the
+--- heading landed on, or nil (cursor untouched) when no heading
+--- precedes. {opts} filters by level like `gutenberg.api.heading.find_prev`.
+---@param ctx? gutenberg.Context.Partial
+---@param opts? { min_level?: integer, max_level?: integer }
+---@return gutenberg.heading.Heading?, TSNode?
+function M.prev(ctx, opts)
+  return jump(api.find_prev, context.resolve(ctx), opts)
+end
+
 return M
