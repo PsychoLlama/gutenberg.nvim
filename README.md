@@ -9,20 +9,19 @@
 built on Treesitter. It ships no keymaps and no commands — it provides
 the primitives to build your own.
 
-Everything it exposes is one of three kinds:
+The API has two tiers:
 
-- **Interpretation** — ask what the cursor is on and decode it into a
-  plain Lua value: `list.is_list_item()`, `list.read()`, and friends.
-- **Navigation** — locate constructs without moving anything:
-  `heading.find_next()`, `heading.list()`.
-- **Codemods** — transform values in memory and write them back in a
-  single buffer update: setters, `replace()`, and sugar like
-  `list.toggle_checkbox()` or `table.format()`.
+- **`require('gutenberg.api')`** holds the low-level primitives —
+  probes, readers, renderers, accessors, navigation. Nothing here
+  prompts, notifies, or moves the cursor.
+- **`require('gutenberg')`** holds cursor-level sugar designed to be
+  bound: count- and visual-range-aware edits, motions, and pickers,
+  with error messages ready for `vim.notify`.
 
 ```lua
-local list = require('gutenberg').list
-
 -- The primitives…
+local list = require('gutenberg.api').list
+
 if list.is_list_item() then
   local item, node = list.read()
   list.set_checked(item, not list.is_checked(item))
@@ -30,12 +29,15 @@ if list.is_list_item() then
 end
 
 -- …or the sugar built on top of them.
-list.toggle_checkbox()
+require('gutenberg').list.toggle_checkbox()
 ```
 
-Every API accepts an optional `{ bufnr, cursor }` context, so nothing
-assumes the current buffer. Submodules load lazily;
-`require('gutenberg')` costs nothing for features you don't touch.
+The `gutenberg.keymap` adapters turn those verbs into complete
+mappings — counts, `.`-repeat, operators, and live visual selections —
+in a line per mode. Every API accepts an optional
+`{ bufnr, cursor, count, range }` context, so nothing assumes the
+current buffer. Submodules load lazily; `require('gutenberg')` costs
+nothing for features you don't touch.
 
 ## Getting Started
 
