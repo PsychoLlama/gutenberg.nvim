@@ -123,6 +123,8 @@ gutenberg.table.Table	gutenberg.txt	/*gutenberg.table.Table*
 gutenberg.table.actions()	gutenberg.txt	/*gutenberg.table.actions()*
 gutenberg.table.cycle_alignment()	gutenberg.txt	/*gutenberg.table.cycle_alignment()*
 gutenberg.table.format()	gutenberg.txt	/*gutenberg.table.format()*
+gutenberg.table.move_column_left()	gutenberg.txt	/*gutenberg.table.move_column_left()*
+gutenberg.table.move_column_right()	gutenberg.txt	/*gutenberg.table.move_column_right()*
 gutenberg.table.next_cell()	gutenberg.txt	/*gutenberg.table.next_cell()*
 gutenberg.table.next_table()	gutenberg.txt	/*gutenberg.table.next_table()*
 gutenberg.table.prev_cell()	gutenberg.txt	/*gutenberg.table.prev_cell()*

@@ -1,8 +1,8 @@
 # The Gutenberg Tour
 
 This is a scratch buffer: nothing is saved, and the keybindings shown
-below are bound to this buffer alone. Edit freely, undo with `u`, and
-reopen a fresh copy any time:
+below are bound to this buffer alone. Edit freely — undo bottoms out
+at this pristine copy — and reopen a fresh one any time:
 
     :lua require('gutenberg').tour()
 
@@ -26,8 +26,7 @@ boundary call adds no undo entry.
 
 `]h` and `[h` jump to the next and previous heading, counts included:
 `3]h` jumps three ahead, and `d]h` deletes to the next one. Neither
-changes the document. (For an outline, Neovim's built-in `gO` already
-covers markdown.)
+changes the document.
 
 Visually select from here up to the first heading and press
 `<leader>m>` — every heading in the selection demotes in one undo
@@ -38,10 +37,9 @@ step.
 ## Lists
 
 `<leader>mx` toggles the checkbox on a list item; items without one
-gain a checkbox first. Try `3<leader>mx` on the first line, then `.`
-on the last — and select the whole list with `V` and press
-`<leader>mx`: a mixed selection checks everything, a fully-checked one
-unchecks:
+gain a checkbox first. Toggle "oranges", then `.` on "pears" — and
+select the whole list with `V` and press `<leader>mx`: a mixed
+selection checks everything, a fully-checked one unchecks:
 
 - [x] oranges
 - [ ] apples
@@ -56,10 +54,9 @@ converts just the selection:
 - bake for 25 minutes
 
 `<leader>m>` and `<leader>m<` — the same depth bindings that demote
-and promote headings — indent and dedent list items here, and they
-earn their keys over plain `>>`/`<<` by renumbering ordered lists on
-both sides of the move. Indent "third" and watch "fourth" close the
-gap; dedent it back:
+and promote headings — indent and dedent list items here, renumbering
+ordered lists on both sides of the move. Indent "third" and watch
+"fourth" close the gap; dedent it back:
 
 1. first
 2. second
@@ -74,19 +71,22 @@ the buffer.
 
 ## Tables
 
-| Keybinding    | What it does                                          |
-| ------------- | ----------------------------------------------------- |
-| `]t` / `[t`   | Jump to the next / previous table                     |
-| `]\|` / `[\|` | Jump to the next / previous cell                      |
-| `i\|`         | Inner-cell textobject: try `ci\|` or `vi\|`           |
-| `<leader>mf`  | Format the table: pad cells, align pipes              |
-| `<leader>ma`  | Cycle the cursor column: none → left → center → right |
-| `<leader>mt`  | Structural actions: rows, columns, alignment          |
+| Keybinding                  | What it does                                          |
+| --------------------------- | ----------------------------------------------------- |
+| `]t` / `[t`                 | Jump to the next / previous table                     |
+| `]\|` / `[\|`               | Jump to the next / previous cell                      |
+| `i\|`                       | Inner-cell textobject: try `ci\|` or `vi\|`           |
+| `<leader>m<` / `<leader>m>` | Drag the cursor's column left / right                 |
+| `<leader>mf`                | Format the table: pad cells, align pipes              |
+| `<leader>ma`                | Cycle the cursor column: none → left → center → right |
+| `<leader>mt`                | Structural actions: rows, columns, alignment          |
 
 A ragged table to work with — walk its cells with `]|`, rewrite a cell
-with `ci|`, then `<leader>mf` to clean it up. `<leader>mt` opens a
-picker for the structural edits: insert a row, move a column, delete
-either:
+with `ci|`, then `<leader>mf` to clean it up. The depth bindings work
+here too: `<leader>m>` drags the cursor's column right and `<leader>m<`
+drags it back, cursor riding along so repeated presses keep dragging.
+For everything else — inserting rows, deleting columns — `<leader>mt`
+opens a picker of structural edits:
 
 <!-- prettier-ignore -->
 | Item | Price | Notes |
@@ -115,9 +115,6 @@ under the cursor, leaving its text — and it repeats with `.`:
 Wrap this sentence's first word, then unlink
 [an editor](https://example.com).
 
-(Editing an existing link needs no binding: the URL and text are plain
-delimited text, so `ci(` and `ci[` already handle them.)
-
 ---
 
 ## Code Blocks
@@ -126,8 +123,8 @@ delimited text, so `ci(` and `ci[` already handle them.)
 in place of a blank line. In visual mode it fences the selected lines
 instead. Select these two lines with `V` and try it:
 
-def greet(name):
-return f"hello, {name}"
+echo "hello, $USER"
+uname -a
 
 The fence grows past any backtick runs in the selection, so fencing
 text that already contains a fence stays valid.
