@@ -116,6 +116,77 @@ describe('gutenberg.table', function()
     '| a2 | b2 |',
   }
 
+  describe('move_column_left / move_column_right', function()
+    local COLUMNS = {
+      '| a  | b  | c  |',
+      '| -- | -- | -- |',
+      '| a1 | b1 | c1 |',
+    }
+
+    it('swaps the cursor column with its right neighbor', function()
+      with_buffer(COLUMNS, { 1, 2 }, function(ctx)
+        tbl.move_column_right(ctx)
+        assert.same({
+          '| b   | a   | c   |',
+          '| --- | --- | --- |',
+          '| b1  | a1  | c1  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('moves the cursor column left from a body row', function()
+      with_buffer(COLUMNS, { 3, 7 }, function(ctx)
+        tbl.move_column_left(ctx)
+        assert.same({
+          '| b   | a   | c   |',
+          '| --- | --- | --- |',
+          '| b1  | a1  | c1  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('clamps a count shift at the table edge', function()
+      with_buffer(COLUMNS, { 1, 2 }, function(ctx)
+        tbl.move_column_right({
+          bufnr = ctx.bufnr,
+          cursor = ctx.cursor,
+          count = 5,
+        })
+        assert.same({
+          '| b   | c   | a   |',
+          '| --- | --- | --- |',
+          '| b1  | c1  | a1  |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('follows the column with the cursor', function()
+      with_buffer(COLUMNS, { 1, 2 }, function(ctx)
+        display(ctx)
+        tbl.move_column_right(ctx)
+        assert.same({ 1, 8 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('errors when the column is already at the edge', function()
+      with_buffer(COLUMNS, { 1, 2 }, function(ctx)
+        local tick = vim.b[ctx.bufnr].changedtick
+        assert.error_matches(function()
+          tbl.move_column_left(ctx)
+        end, 'column is already leftmost')
+        assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+      end)
+    end)
+
+    it('errors when the cursor is not on a table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          tbl.move_column_right(ctx)
+        end, 'cursor is not on a pipe table')
+      end)
+    end)
+  end)
+
   describe('next_cell / prev_cell', function()
     it('moves to the next cell in the row', function()
       with_buffer(GRID, { 1, 2 }, function(ctx)

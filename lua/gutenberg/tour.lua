@@ -61,26 +61,31 @@ local function apply_keymaps(bufnr)
     keymap.notify(gutenberg.table.select_cell)
   end, { buffer = bufnr, desc = 'gutenberg: inner table cell' })
 
-  -- Hierarchy: headings and list items share a depth axis.
+  -- Hierarchy: headings, list items, and table columns share a
+  -- left/right axis.
   edit('<leader>m<', function(ctx)
     if gutenberg.api.heading.is_heading(ctx) then
       gutenberg.heading.promote(ctx)
     elseif gutenberg.api.list.is_list_item(ctx) then
       gutenberg.list.dedent(ctx)
+    elseif gutenberg.api.table.is_table(ctx) then
+      gutenberg.table.move_column_left(ctx)
     else
-      error('gutenberg: no heading or list item under the cursor', 0)
+      error('gutenberg: nothing under the cursor to shift left', 0)
     end
-  end, 'promote heading / dedent list item')
+  end, 'promote heading / dedent item / move column left')
 
   edit('<leader>m>', function(ctx)
     if gutenberg.api.heading.is_heading(ctx) then
       gutenberg.heading.demote(ctx)
     elseif gutenberg.api.list.is_list_item(ctx) then
       gutenberg.list.indent(ctx)
+    elseif gutenberg.api.table.is_table(ctx) then
+      gutenberg.table.move_column_right(ctx)
     else
-      error('gutenberg: no heading or list item under the cursor', 0)
+      error('gutenberg: nothing under the cursor to shift right', 0)
     end
-  end, 'demote heading / indent list item')
+  end, 'demote heading / indent item / move column right')
 
   -- Lists
   edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')

@@ -193,10 +193,12 @@ same gate works in visual mode:
       gutenberg.heading.promote(ctx)
     elseif gutenberg.api.list.is_list_item(ctx) then
       gutenberg.list.dedent(ctx)
+    elseif gutenberg.api.table.is_table(ctx) then
+      gutenberg.table.move_column_left(ctx)
     else
-      error('gutenberg: no heading or list item under the cursor', 0)
+      error('gutenberg: nothing under the cursor to shift left', 0)
     end
-  end, 'promote heading / dedent list item')
+  end, 'promote heading / dedent item / move column left')
 <
 Behaviors without a dedicated verb compose from `update`, which reads
 the construct at the cursor, applies your function, and writes back in
@@ -236,8 +238,8 @@ counts, visual mode, and `.`-repeat:
     i|            inner table cell textobject (x, o)
 
   Edits (n with count + `.`, x over the selection) ~
-    <leader>m<    promote heading / dedent list item
-    <leader>m>    demote heading / indent list item
+    <leader>m<    promote heading / dedent list item / move column left
+    <leader>m>    demote heading / indent list item / move column right
     <leader>mx    toggle checkbox (visual: bulk check/uncheck)
     <leader>mo    toggle ordered (n: whole sibling list; x: selection)
 
@@ -299,26 +301,31 @@ already edit them.
         keymap.notify(gutenberg.table.select_cell)
       end, { buffer = args.buf, desc = 'gutenberg: inner table cell' })
 
-      -- Hierarchy: headings and list items share a depth axis.
+      -- Hierarchy: headings, list items, and table columns share a
+      -- left/right axis.
       edit('<leader>m<', function(ctx)
         if gutenberg.api.heading.is_heading(ctx) then
           gutenberg.heading.promote(ctx)
         elseif gutenberg.api.list.is_list_item(ctx) then
           gutenberg.list.dedent(ctx)
+        elseif gutenberg.api.table.is_table(ctx) then
+          gutenberg.table.move_column_left(ctx)
         else
-          error('gutenberg: no heading or list item under the cursor', 0)
+          error('gutenberg: nothing under the cursor to shift left', 0)
         end
-      end, 'promote heading / dedent list item')
+      end, 'promote heading / dedent item / move column left')
 
       edit('<leader>m>', function(ctx)
         if gutenberg.api.heading.is_heading(ctx) then
           gutenberg.heading.demote(ctx)
         elseif gutenberg.api.list.is_list_item(ctx) then
           gutenberg.list.indent(ctx)
+        elseif gutenberg.api.table.is_table(ctx) then
+          gutenberg.table.move_column_right(ctx)
         else
-          error('gutenberg: no heading or list item under the cursor', 0)
+          error('gutenberg: nothing under the cursor to shift right', 0)
         end
-      end, 'demote heading / indent list item')
+      end, 'demote heading / indent item / move column right')
 
       -- Lists
       edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
@@ -798,6 +805,14 @@ cycle_alignment({ctx})                     *gutenberg.table.cycle_alignment()*
     through none → left → center → right → none, rewriting the table
     in a single buffer update. Errors when the cursor isn't on a pipe
     table, or when the cursor column has no delimiter cell.
+
+move_column_left({ctx})                   *gutenberg.table.move_column_left()*
+move_column_right({ctx})                 *gutenberg.table.move_column_right()*
+    Move the column under the cursor `count` columns left / right,
+    clamping at the table edges, in one buffer update. The cursor
+    follows the column so repeated presses keep dragging it. Errors
+    when the cursor isn't on a pipe table, or when the column is
+    already at the edge it would move past.
 
 actions({ctx})                                     *gutenberg.table.actions()*
     Open a |vim.ui.select| picker of structural operations on the

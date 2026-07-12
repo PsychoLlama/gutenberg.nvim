@@ -41,6 +41,52 @@ local ALIGNMENT_CYCLE = { 'none', 'left', 'center', 'right' }
 ---@type table<gutenberg.table.Alignment, integer>
 local ALIGNMENT_INDEX = { none = 1, left = 2, center = 3, right = 4 }
 
+--- Move the cursor to the (row, col) cell of the rewritten table at
+--- `sr`, when the edited buffer is the one on screen. Blank cells
+--- (fresh inserts) have no text range; land just inside their opening
+--- pipe.
+---@param ctx gutenberg.Context
+---@param sr integer Start row of the table node before the rewrite.
+---@param target_row integer 0 = header.
+---@param target_col integer
+local function land(ctx, sr, target_row, target_col)
+  if vim.api.nvim_win_get_buf(0) ~= ctx.bufnr then
+    return
+  end
+  local probe = { bufnr = ctx.bufnr, cursor = { sr + 1, 0 } }
+  local ok, _, current = pcall(api.read, probe)
+  if not ok or current == nil then
+    return
+  end
+
+  local range = api.cell_range(current, target_row, target_col, probe)
+  if range ~= nil then
+    vim.api.nvim_win_set_cursor(0, { range.start[1], range.start[2] })
+    return
+  end
+
+  local line_row = sr + (target_row == 0 and 0 or target_row + 1)
+  local line = vim.api.nvim_buf_get_lines(
+    ctx.bufnr,
+    line_row,
+    line_row + 1,
+    false
+  )[1] or ''
+  local pipes = 0
+  for i = 1, #line do
+    if line:sub(i, i) == '|' then
+      pipes = pipes + 1
+      if pipes == target_col then
+        vim.api.nvim_win_set_cursor(
+          0,
+          { line_row + 1, math.min(i + 1, math.max(#line - 1, 0)) }
+        )
+        return
+      end
+    end
+  end
+end
+
 --- Open a `vim.ui.select` picker of structural operations on the table
 --- at the cursor: insert/delete/move rows and columns, set the cursor
 --- column's alignment (a nested select), and format. Entries that
@@ -63,49 +109,6 @@ function M.actions(ctx)
   local col = api.column_at(ctx) or 1
   local notify = require('gutenberg.keymap').notify
 
-  --- Move the cursor to the (row, col) cell of the rewritten table,
-  --- when the edited buffer is the one on screen. Blank cells (fresh
-  --- inserts) have no text range; land just inside their opening pipe.
-  ---@param target_row integer 0 = header.
-  ---@param target_col integer
-  local function land(target_row, target_col)
-    if vim.api.nvim_win_get_buf(0) ~= ctx.bufnr then
-      return
-    end
-    local probe = { bufnr = ctx.bufnr, cursor = { sr + 1, 0 } }
-    local ok, _, current = pcall(api.read, probe)
-    if not ok or current == nil then
-      return
-    end
-
-    local range = api.cell_range(current, target_row, target_col, probe)
-    if range ~= nil then
-      vim.api.nvim_win_set_cursor(0, { range.start[1], range.start[2] })
-      return
-    end
-
-    local line_row = sr + (target_row == 0 and 0 or target_row + 1)
-    local line = vim.api.nvim_buf_get_lines(
-      ctx.bufnr,
-      line_row,
-      line_row + 1,
-      false
-    )[1] or ''
-    local pipes = 0
-    for i = 1, #line do
-      if line:sub(i, i) == '|' then
-        pipes = pipes + 1
-        if pipes == target_col then
-          vim.api.nvim_win_set_cursor(
-            0,
-            { line_row + 1, math.min(i + 1, math.max(#line - 1, 0)) }
-          )
-          return
-        end
-      end
-    end
-  end
-
   --- Rewrite the table through `fn` in one buffer update, then park
   --- the cursor on the affected cell.
   ---@param fn fun(tbl: gutenberg.table.Table)
@@ -114,7 +117,7 @@ function M.actions(ctx)
   local function apply(fn, target_row, target_col)
     notify(function()
       M.update(fn, ctx)
-      land(target_row, target_col)
+      land(ctx, sr, target_row, target_col)
     end)
   end
 
@@ -418,6 +421,61 @@ function M.cycle_alignment(ctx)
     local advanced = ALIGNMENT_CYCLE[(index - 1 + ctx.count) % 4 + 1]
     api.set_alignment(tbl, col, advanced)
   end, ctx)
+end
+
+--- Move the cursor's column `direction * ctx.count` places, clamped at
+--- the table edges, then land the cursor on the moved column so
+--- repeated presses keep dragging it.
+---@param direction 1 | -1
+---@param ctx gutenberg.Context
+---@return gutenberg.table.Table[] written
+local function shift_column(direction, ctx)
+  local tbl, node = api.read(ctx)
+  local col = api.column_at(ctx)
+  if col == nil then
+    error('gutenberg: cursor is not on a pipe table', 0)
+  end
+
+  local target =
+    math.max(1, math.min(#tbl.headers, col + direction * ctx.count))
+  if target == col then
+    error(
+      direction == 1 and 'gutenberg: column is already rightmost'
+        or 'gutenberg: column is already leftmost',
+      0
+    )
+  end
+
+  local row = api.row_at(ctx) or 0
+  local sr = node:range()
+  local written = M.update(function(t)
+    api.move_column(t, col, target)
+  end, ctx)
+  land(ctx, sr, row, target)
+  return written
+end
+
+--- Move the column under the cursor `ctx.count` columns left, clamping
+--- at the first column, and rewrite the table in one buffer update.
+--- Unlike most codemods this moves the current window's cursor — it
+--- follows the column so repeated presses keep dragging it. Errors if
+--- the cursor isn't on a pipe table, or when the column is already
+--- leftmost.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.table.Table[] written
+function M.move_column_left(ctx)
+  return shift_column(-1, context.resolve(ctx))
+end
+
+--- Move the column under the cursor `ctx.count` columns right,
+--- clamping at the last column, and rewrite the table in one buffer
+--- update. Moves the current window's cursor — it follows the column
+--- so repeated presses keep dragging it. Errors if the cursor isn't on
+--- a pipe table, or when the column is already rightmost.
+---@param ctx? gutenberg.Context.Partial
+---@return gutenberg.table.Table[] written
+function M.move_column_right(ctx)
+  return shift_column(1, context.resolve(ctx))
 end
 
 return M

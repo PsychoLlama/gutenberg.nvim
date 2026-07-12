@@ -20,8 +20,10 @@ Initial release.
   live visual selections.
 - Motions: next/previous heading, table, and table cell, plus an
   inner-cell textobject (`table.select_cell`).
-- Table structure: insert/delete/move rows and columns, and a
-  `table.actions()` picker over them.
+- Table structure: insert/delete/move rows and columns, a
+  `table.actions()` picker over them, and cursor-following
+  `table.move_column_left` / `table.move_column_right` verbs so the
+  depth keymaps can drag a column across the table.
 - Smart list indent/dedent that nests by document structure — the
   shift always reaches the previous sibling's content column, so `3.`
   nests under `2.` even with a narrow 'tabstop' — and renumbers
