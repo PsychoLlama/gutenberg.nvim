@@ -177,7 +177,16 @@ function M.open()
 
   local bufnr = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(bufnr, BUFFER_NAME)
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.fn.readfile(path))
+
+  -- Load the document with undo recording off (:h clear-undo) so
+  -- undoing all the way back stops at the pristine tour instead of a
+  -- blank buffer.
+  vim.api.nvim_buf_call(bufnr, function()
+    vim.cmd('setlocal undolevels=-1')
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.fn.readfile(path))
+    vim.cmd('set undolevels<')
+  end)
+
   vim.bo[bufnr].filetype = 'markdown'
   apply_keymaps(bufnr)
   vim.api.nvim_win_set_buf(0, bufnr)

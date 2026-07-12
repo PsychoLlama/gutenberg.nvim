@@ -18,6 +18,9 @@ Initial release.
   single buffer update and one undo entry.
 - `gutenberg.keymap` adapters for dot-repeat, counts, operators, and
   live visual selections.
+- `gutenberg.tour()`: an interactive walkthrough in a scratch buffer
+  with the recommended keymaps bound to it alone; undo bottoms out at
+  the pristine document.
 - Motions: next/previous heading, table, and table cell, plus an
   inner-cell textobject (`table.select_cell`).
 - Table structure: insert/delete/move rows and columns, a

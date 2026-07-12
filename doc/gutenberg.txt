@@ -138,8 +138,9 @@ An interactive tour of the plugin, in the spirit of |:Tutor|:
 <
 This opens a scratch copy of the tour document — edit anything, nothing
 is saved — with the keymaps from |gutenberg-recommended-config| bound
-to that buffer alone. Reopening replaces the buffer with a fresh copy.
-Returns the tour buffer number.
+to that buffer alone. Undo bottoms out at the pristine document, and
+reopening replaces the buffer with a fresh copy. Returns the tour
+buffer number.
 
 ==============================================================================
 RECIPES                                                    *gutenberg-recipes*

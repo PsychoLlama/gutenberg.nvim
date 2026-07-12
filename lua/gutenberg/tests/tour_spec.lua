@@ -93,6 +93,19 @@ describe('gutenberg.tour', function()
     end
   end)
 
+  it('cannot undo past the pristine document', function()
+    local bufnr = tour.open()
+    local pristine = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+    vim.api.nvim_buf_call(bufnr, function()
+      vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { 'edited' })
+      vim.cmd('silent! undo')
+      vim.cmd('silent! undo')
+    end)
+
+    assert.same(pristine, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  end)
+
   it('replaces a previous tour buffer on reopen', function()
     local first = tour.open()
     local second = tour.open()
