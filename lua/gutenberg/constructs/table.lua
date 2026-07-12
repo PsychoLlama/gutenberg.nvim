@@ -41,6 +41,199 @@ local ALIGNMENT_CYCLE = { 'none', 'left', 'center', 'right' }
 ---@type table<gutenberg.table.Alignment, integer>
 local ALIGNMENT_INDEX = { none = 1, left = 2, center = 3, right = 4 }
 
+--- Open a `vim.ui.select` picker of structural operations on the table
+--- at the cursor: insert/delete/move rows and columns, set the cursor
+--- column's alignment (a nested select), and format. Entries that
+--- don't apply at the cursor position (deleting the header row, moving
+--- the first column left, …) are omitted. Column inserts prompt
+--- `vim.ui.input` for the header text.
+---
+--- The cursor's table, row, and column are resolved eagerly — the
+--- prompt can't retarget — and erroring off-table happens
+--- synchronously so a `pcall` + notify keymap edge still works. Every
+--- branch lands in one buffer write, and the cursor moves to the
+--- affected cell. This is a sanctioned UI edge (see AGENTS.md):
+--- failures inside prompt callbacks surface via `gutenberg.keymap.notify`.
+---@param ctx? gutenberg.Context.Partial
+function M.actions(ctx)
+  ctx = context.resolve(ctx)
+  local tbl, node = api.read(ctx)
+  local sr = node:range()
+  local row = api.row_at(ctx) or 0
+  local col = api.column_at(ctx) or 1
+  local notify = require('gutenberg.keymap').notify
+
+  --- Move the cursor to the (row, col) cell of the rewritten table,
+  --- when the edited buffer is the one on screen. Blank cells (fresh
+  --- inserts) have no text range; land just inside their opening pipe.
+  ---@param target_row integer 0 = header.
+  ---@param target_col integer
+  local function land(target_row, target_col)
+    if vim.api.nvim_win_get_buf(0) ~= ctx.bufnr then
+      return
+    end
+    local probe = { bufnr = ctx.bufnr, cursor = { sr + 1, 0 } }
+    local ok, _, current = pcall(api.read, probe)
+    if not ok or current == nil then
+      return
+    end
+
+    local range = api.cell_range(current, target_row, target_col, probe)
+    if range ~= nil then
+      vim.api.nvim_win_set_cursor(0, { range.start[1], range.start[2] })
+      return
+    end
+
+    local line_row = sr + (target_row == 0 and 0 or target_row + 1)
+    local line = vim.api.nvim_buf_get_lines(
+      ctx.bufnr,
+      line_row,
+      line_row + 1,
+      false
+    )[1] or ''
+    local pipes = 0
+    for i = 1, #line do
+      if line:sub(i, i) == '|' then
+        pipes = pipes + 1
+        if pipes == target_col then
+          vim.api.nvim_win_set_cursor(
+            0,
+            { line_row + 1, math.min(i + 1, math.max(#line - 1, 0)) }
+          )
+          return
+        end
+      end
+    end
+  end
+
+  --- Rewrite the table through `fn` in one buffer update, then park
+  --- the cursor on the affected cell.
+  ---@param fn fun(tbl: gutenberg.table.Table)
+  ---@param target_row integer
+  ---@param target_col integer
+  local function apply(fn, target_row, target_col)
+    notify(function()
+      M.update(fn, ctx)
+      land(target_row, target_col)
+    end)
+  end
+
+  ---@type { label: string, run: fun() }[]
+  local actions = {}
+  ---@param label string
+  ---@param applicable boolean
+  ---@param run fun()
+  local function add(label, applicable, run)
+    if applicable then
+      table.insert(actions, { label = label, run = run })
+    end
+  end
+
+  add('Insert row above', row >= 1, function()
+    apply(function(t)
+      api.insert_row(t, row, {})
+    end, row, col)
+  end)
+
+  add('Insert row below', true, function()
+    local index = row + 1
+    apply(function(t)
+      api.insert_row(t, index, {})
+    end, index, col)
+  end)
+
+  add('Delete row', row >= 1, function()
+    local target = math.max(0, math.min(row, #tbl.rows - 1))
+    apply(function(t)
+      api.delete_row(t, row)
+    end, target, col)
+  end)
+
+  add('Move row up', row >= 2, function()
+    apply(function(t)
+      api.move_row(t, row, row - 1)
+    end, row - 1, col)
+  end)
+
+  add('Move row down', row >= 1 and row < #tbl.rows, function()
+    apply(function(t)
+      api.move_row(t, row, row + 1)
+    end, row + 1, col)
+  end)
+
+  add('Insert column left', true, function()
+    vim.ui.input({ prompt = 'Header: ' }, function(input)
+      if input == nil then
+        return
+      end
+      apply(function(t)
+        api.insert_column(t, col, { header = input })
+      end, row, col)
+    end)
+  end)
+
+  add('Insert column right', true, function()
+    vim.ui.input({ prompt = 'Header: ' }, function(input)
+      if input == nil then
+        return
+      end
+      apply(function(t)
+        api.insert_column(t, col + 1, { header = input })
+      end, row, col + 1)
+    end)
+  end)
+
+  add('Delete column', #tbl.headers > 1, function()
+    local target = math.min(col, #tbl.headers - 1)
+    apply(function(t)
+      api.delete_column(t, col)
+    end, row, target)
+  end)
+
+  add('Move column left', col >= 2, function()
+    apply(function(t)
+      api.move_column(t, col, col - 1)
+    end, row, col - 1)
+  end)
+
+  add('Move column right', col < #tbl.headers, function()
+    apply(function(t)
+      api.move_column(t, col, col + 1)
+    end, row, col + 1)
+  end)
+
+  add('Set alignment', true, function()
+    vim.ui.select(
+      { 'none', 'left', 'center', 'right' },
+      { prompt = 'Alignment' },
+      function(choice)
+        if choice == nil then
+          return
+        end
+        apply(function(t)
+          api.set_alignment(t, col, choice)
+        end, row, col)
+      end
+    )
+  end)
+
+  add('Format table', true, function()
+    apply(function() end, row, col)
+  end)
+
+  vim.ui.select(actions, {
+    prompt = 'Table action',
+    format_item = function(action)
+      return action.label
+    end,
+  }, function(choice)
+    if choice == nil then
+      return
+    end
+    choice.run()
+  end)
+end
+
 --- Every cell address in a table, reading order: header left-to-right,
 --- then each body row.
 ---@param tbl gutenberg.table.Table

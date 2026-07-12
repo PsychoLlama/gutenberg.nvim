@@ -265,4 +265,199 @@ describe('gutenberg.table', function()
       end)
     end)
   end)
+
+  describe('actions', function()
+    --- Run `fn` with `vim.ui.select` answering each prompt with the
+    --- next label from `choices` (nil = cancel) and `vim.ui.input`
+    --- answering `input`. Offered top-level labels are captured.
+    ---@param choices (string | nil)[]
+    ---@param input string?
+    ---@param fn fun(offered: string[])
+    local function with_ui(choices, input, fn)
+      local queue = vim.deepcopy(choices)
+      ---@type string[]
+      local offered = {}
+      local original_select = vim.ui.select
+      local original_input = vim.ui.input
+
+      ---@diagnostic disable-next-line: duplicate-set-field
+      vim.ui.select = function(items, opts, on_choice)
+        local labels = {}
+        for _, item in ipairs(items) do
+          local label = opts and opts.format_item and opts.format_item(item)
+            or item
+          table.insert(labels, label)
+        end
+        if #offered == 0 then
+          for _, label in ipairs(labels) do
+            table.insert(offered, label)
+          end
+        end
+        local want = table.remove(queue, 1)
+        for i, label in ipairs(labels) do
+          if label == want then
+            return on_choice(items[i], i)
+          end
+        end
+        return on_choice(nil, nil)
+      end
+      ---@diagnostic disable-next-line: duplicate-set-field
+      vim.ui.input = function(_, on_confirm)
+        on_confirm(input)
+      end
+
+      local ok, err = pcall(fn, offered)
+      vim.ui.select = original_select
+      vim.ui.input = original_input
+      if not ok then
+        error(err)
+      end
+    end
+
+    it('errors synchronously off-table', function()
+      with_buffer({ 'paragraph' }, { 1, 0 }, function(ctx)
+        assert.error_matches(function()
+          tbl.actions(ctx)
+        end, 'cursor is not on a pipe table')
+      end)
+    end)
+
+    it('inserts an empty row below in one write', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        with_ui({ 'Insert row below' }, nil, function()
+          local tick = vim.b[ctx.bufnr].changedtick
+          tbl.actions(ctx)
+          assert.same({
+            '| a   | b   |',
+            '| --- | --- |',
+            '| a1  | b1  |',
+            '|     |     |',
+            '| a2  | b2  |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+          assert.equal(tick + 1, vim.b[ctx.bufnr].changedtick)
+        end)
+      end)
+    end)
+
+    it('deletes the cursor row', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        with_ui({ 'Delete row' }, nil, function()
+          tbl.actions(ctx)
+          assert.same({
+            '| a   | b   |',
+            '| --- | --- |',
+            '| a2  | b2  |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end)
+      end)
+    end)
+
+    it('moves the cursor row down', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        with_ui({ 'Move row down' }, nil, function()
+          tbl.actions(ctx)
+          assert.same({
+            '| a   | b   |',
+            '| --- | --- |',
+            '| a2  | b2  |',
+            '| a1  | b1  |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end)
+      end)
+    end)
+
+    it('prompts for the header when inserting a column', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        with_ui({ 'Insert column right' }, 'c', function()
+          tbl.actions(ctx)
+          assert.same({
+            '| a   | c   | b   |',
+            '| --- | --- | --- |',
+            '| a1  |     | b1  |',
+            '| a2  |     | b2  |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end)
+      end)
+    end)
+
+    it('sets the column alignment through a nested select', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        with_ui({ 'Set alignment', 'center' }, nil, function()
+          tbl.actions(ctx)
+          assert.same({
+            '|  a  | b   |',
+            '| :-: | --- |',
+            '| a1  | b1  |',
+            '| a2  | b2  |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end)
+      end)
+    end)
+
+    it('formats the table', function()
+      local ragged = { '| a | b |', '| - | - |', '|1|two|' }
+      with_buffer(ragged, { 3, 0 }, function(ctx)
+        with_ui({ 'Format table' }, nil, function()
+          tbl.actions(ctx)
+          assert.same({
+            '| a   | b   |',
+            '| --- | --- |',
+            '| 1   | two |',
+          }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+        end)
+      end)
+    end)
+
+    it('omits inapplicable entries on the header row', function()
+      with_buffer(GRID, { 1, 2 }, function(ctx)
+        with_ui({}, nil, function(offered)
+          tbl.actions(ctx)
+          local set = {}
+          for _, label in ipairs(offered) do
+            set[label] = true
+          end
+          assert.is_nil(set['Insert row above'])
+          assert.is_nil(set['Delete row'])
+          assert.is_nil(set['Move row up'])
+          assert.is_nil(set['Move row down'])
+          assert.is_nil(set['Move column left'])
+          assert.is_true(set['Insert row below'])
+          assert.is_true(set['Move column right'])
+        end)
+      end)
+    end)
+
+    it('omits column deletion on a single-column table', function()
+      with_buffer({ '| a |', '| - |' }, { 1, 2 }, function(ctx)
+        with_ui({}, nil, function(offered)
+          tbl.actions(ctx)
+          local set = {}
+          for _, label in ipairs(offered) do
+            set[label] = true
+          end
+          assert.is_nil(set['Delete column'])
+        end)
+      end)
+    end)
+
+    it('cancelling the picker changes nothing', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        with_ui({ nil }, nil, function()
+          local tick = vim.b[ctx.bufnr].changedtick
+          tbl.actions(ctx)
+          assert.equal(tick, vim.b[ctx.bufnr].changedtick)
+        end)
+      end)
+    end)
+
+    it('lands the cursor on the affected cell', function()
+      with_buffer(GRID, { 3, 2 }, function(ctx)
+        display(ctx)
+        with_ui({ 'Move row down' }, nil, function()
+          tbl.actions(ctx)
+          assert.same({ 4, 2 }, vim.api.nvim_win_get_cursor(0))
+        end)
+      end)
+    end)
+  end)
 end)
