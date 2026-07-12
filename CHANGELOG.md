@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `gutenberg.list.is_list_item` / `read` / `dedent` now recognize the
   cursor as being on a list item when it sits anywhere in the item's
   leading indent, not just on the marker or its content.
+- The same leading-indent rule now applies to every block construct:
+  `heading.is_heading` / `read`, `table.is_table` / `read`,
+  `code_block.is_code_block` / `read`, and `link.is_definition` /
+  `read_definition` resolve their construct with the cursor anywhere on
+  its first row, including indentation before it.
 - `replace` (every module) and `list.indent` / `list.dedent` skip the
   buffer write when the rendered output equals the existing range, so
   no-op edits (e.g. promoting an h1 to h1) no longer add an undo entry.

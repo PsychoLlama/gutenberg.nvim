@@ -191,6 +191,16 @@ describe('gutenberg.table', function()
       end)
     end)
 
+    it('returns true in the leading indent of an indented table', function()
+      with_buffer({
+        '  | a | b |',
+        '  | - | - |',
+        '  | 1 | 2 |',
+      }, { 1, 0 }, function(ctx)
+        assert.is_true(tbl.is_table(ctx))
+      end)
+    end)
+
     it('returns false on a paragraph', function()
       with_buffer({ 'paragraph' }, { 1, 2 }, function(ctx)
         assert.is_false(tbl.is_table(ctx))

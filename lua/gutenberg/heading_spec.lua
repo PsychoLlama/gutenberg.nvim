@@ -63,6 +63,12 @@ describe('gutenberg.heading', function()
       end
     end)
 
+    it('returns true in the leading indent of an indented heading', function()
+      with_buffer({ '  ## indented' }, { 1, 0 }, function(ctx)
+        assert.is_true(heading.is_heading(ctx))
+      end)
+    end)
+
     it('returns false on a list item', function()
       with_buffer({ '- foo' }, { 1, 2 }, function(ctx)
         assert.is_false(heading.is_heading(ctx))

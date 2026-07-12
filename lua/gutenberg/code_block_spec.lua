@@ -156,6 +156,16 @@ describe('gutenberg.code_block', function()
       end)
     end)
 
+    it('returns true in the leading indent of an indented fence', function()
+      with_buffer(
+        { '  ```lua', "  print('hi')", '  ```' },
+        { 1, 0 },
+        function(ctx)
+          assert.is_true(code_block.is_code_block(ctx))
+        end
+      )
+    end)
+
     it('returns false on a paragraph', function()
       with_buffer({ 'just a paragraph' }, { 1, 2 }, function(ctx)
         assert.is_false(code_block.is_code_block(ctx))
