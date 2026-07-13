@@ -145,7 +145,35 @@ local function apply_keymaps(bufnr)
     keymap.notify(gutenberg.table.actions)
   end, { buffer = bufnr, desc = 'gutenberg: table actions' })
 
-  -- Links: wrap a motion or selection, prompting for the URL.
+  -- Inline spans: wrap a motion (n) or selection (x) in delimiters.
+  ---@param lhs string
+  ---@param verb fun(ctx: gutenberg.Context.Partial)
+  ---@param desc string
+  local function wrap(lhs, verb, desc)
+    vim.keymap.set('n', lhs, keymap.operator(verb), {
+      buffer = bufnr,
+      expr = true,
+      desc = 'gutenberg: ' .. desc,
+    })
+    vim.keymap.set('x', lhs, keymap.visual(verb), {
+      buffer = bufnr,
+      desc = 'gutenberg: ' .. desc,
+    })
+  end
+
+  -- Remove the span under the cursor (`.`-repeatable).
+  ---@param lhs string
+  ---@param verb fun(ctx: gutenberg.Context.Partial)
+  ---@param desc string
+  local function remove(lhs, verb, desc)
+    vim.keymap.set('n', lhs, keymap.repeatable(verb), {
+      buffer = bufnr,
+      expr = true,
+      desc = 'gutenberg: ' .. desc,
+    })
+  end
+
+  -- Links prompt for the URL; the other spans wrap directly.
   ---@param ctx gutenberg.Context.Partial
   local function wrap_link(ctx)
     vim.ui.input({ prompt = 'URL: ' }, function(input)
@@ -157,37 +185,30 @@ local function apply_keymaps(bufnr)
       end)
     end)
   end
+  wrap('<leader>ml', wrap_link, 'wrap in link')
+  remove('<leader>mL', gutenberg.link.remove, 'remove link')
 
-  vim.keymap.set('n', '<leader>ml', keymap.operator(wrap_link), {
-    buffer = bufnr,
-    expr = true,
-    desc = 'gutenberg: wrap motion in link',
-  })
-  vim.keymap.set('x', '<leader>ml', keymap.visual(wrap_link), {
-    buffer = bufnr,
-    desc = 'gutenberg: wrap selection in link',
-  })
-  vim.keymap.set(
-    'n',
-    '<leader>mL',
-    keymap.repeatable(gutenberg.link.remove),
-    {
-      buffer = bufnr,
-      expr = true,
-      desc = 'gutenberg: remove link',
-    }
-  )
+  wrap('<leader>me', gutenberg.emphasis.wrap, 'wrap in emphasis')
+  remove('<leader>mE', gutenberg.emphasis.remove, 'remove emphasis')
+  wrap('<leader>mb', gutenberg.strong.wrap, 'wrap in strong')
+  remove('<leader>mB', gutenberg.strong.remove, 'remove strong')
+  wrap('<leader>ms', gutenberg.strikethrough.wrap, 'wrap in strikethrough')
+  remove('<leader>mS', gutenberg.strikethrough.remove, 'remove strikethrough')
 
-  -- Code blocks: insert an empty block, or fence the selection.
-  vim.keymap.set('n', '<leader>mc', function()
-    keymap.notify(gutenberg.code_block.insert)
-  end, { buffer = bufnr, desc = 'gutenberg: insert code block' })
-  vim.keymap.set(
-    'x',
-    '<leader>mc',
-    keymap.visual(gutenberg.code_block.wrap),
-    { buffer = bufnr, desc = 'gutenberg: fence selection' }
-  )
+  -- Code: a charwise motion/selection wraps an inline code span; a
+  -- linewise one fences a code block. (`gutenberg.code_block.insert`
+  -- has no binding — a blank-line linewise `<leader>mc` fences an empty
+  -- block; bind `keymap.notify(gutenberg.code_block.insert)` for it.)
+  ---@param ctx gutenberg.Context.Partial
+  local function wrap_code(ctx)
+    if ctx.range ~= nil and ctx.range.mode == 'line' then
+      gutenberg.code_block.wrap(ctx)
+    else
+      gutenberg.code_span.wrap(ctx)
+    end
+  end
+  wrap('<leader>mc', wrap_code, 'inline code / fence block')
+  remove('<leader>mC', gutenberg.code_span.remove, 'remove code span')
 end
 
 --- Open the tour in the current window. Any previous tour buffer is

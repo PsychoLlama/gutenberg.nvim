@@ -251,11 +251,16 @@ counts, visual mode, and `.`-repeat:
     <leader>mf    format table
     <leader>mt    column actions picker (insert left/right, delete)
 
-  Links and code blocks ~
-    <leader>ml    wrap motion (n) / selection (x) in a link; prompts
-                  for the URL — empty is fine, `[text]()` is legal
+  Inline spans (wrap: n motion / x selection; capital: remove at cursor) ~
+    <leader>ml    wrap in a link; prompts for the URL — empty is fine,
+                  `[text]()` is legal
     <leader>mL    remove the link under the cursor (`.`-repeatable)
-    <leader>mc    insert empty code block (n) / fence selection (x)
+    <leader>me <leader>mE    emphasis    `*x*`
+    <leader>mb <leader>mB    strong      `**x**`
+    <leader>ms <leader>mS    strikethrough  `~~x~~`
+    <leader>mc    charwise: wrap an inline code span `` `x` ``;
+                  linewise: fence a code block
+    <leader>mC    remove the code span under the cursor (`.`-repeatable)
 
 Built into Neovim already, so this config leaves them alone: the
 markdown |ft-markdown-plugin| binds `]]` / `[[` to jump between
@@ -392,7 +397,29 @@ already edit them.
         keymap.notify(gutenberg.table.actions)
       end, { buffer = args.buf, desc = 'gutenberg: table actions' })
 
-      -- Links: wrap a motion or selection, prompting for the URL.
+      -- Inline spans: wrap a motion (n) or selection (x) in delimiters.
+      local function wrap(lhs, verb, desc)
+        vim.keymap.set('n', lhs, keymap.operator(verb), {
+          buffer = args.buf,
+          expr = true,
+          desc = 'gutenberg: ' .. desc,
+        })
+        vim.keymap.set('x', lhs, keymap.visual(verb), {
+          buffer = args.buf,
+          desc = 'gutenberg: ' .. desc,
+        })
+      end
+
+      -- Remove the span under the cursor (`.`-repeatable).
+      local function remove(lhs, verb, desc)
+        vim.keymap.set('n', lhs, keymap.repeatable(verb), {
+          buffer = args.buf,
+          expr = true,
+          desc = 'gutenberg: ' .. desc,
+        })
+      end
+
+      -- Links prompt for the URL; the other spans wrap directly.
       local function wrap_link(ctx)
         vim.ui.input({ prompt = 'URL: ' }, function(input)
           if input == nil then
@@ -403,32 +430,30 @@ already edit them.
           end)
         end)
       end
+      wrap('<leader>ml', wrap_link, 'wrap in link')
+      remove('<leader>mL', gutenberg.link.remove, 'remove link')
 
-      vim.keymap.set('n', '<leader>ml', keymap.operator(wrap_link), {
-        buffer = args.buf,
-        expr = true,
-        desc = 'gutenberg: wrap motion in link',
-      })
-      vim.keymap.set('x', '<leader>ml', keymap.visual(wrap_link), {
-        buffer = args.buf,
-        desc = 'gutenberg: wrap selection in link',
-      })
-      vim.keymap.set('n', '<leader>mL', keymap.repeatable(gutenberg.link.remove), {
-        buffer = args.buf,
-        expr = true,
-        desc = 'gutenberg: remove link',
-      })
+      wrap('<leader>me', gutenberg.emphasis.wrap, 'wrap in emphasis')
+      remove('<leader>mE', gutenberg.emphasis.remove, 'remove emphasis')
+      wrap('<leader>mb', gutenberg.strong.wrap, 'wrap in strong')
+      remove('<leader>mB', gutenberg.strong.remove, 'remove strong')
+      wrap('<leader>ms', gutenberg.strikethrough.wrap, 'wrap in strikethrough')
+      remove('<leader>mS', gutenberg.strikethrough.remove, 'remove strikethrough')
 
-      -- Code blocks: insert an empty block, or fence the selection.
-      vim.keymap.set('n', '<leader>mc', function()
-        keymap.notify(gutenberg.code_block.insert)
-      end, { buffer = args.buf, desc = 'gutenberg: insert code block' })
-      vim.keymap.set(
-        'x',
-        '<leader>mc',
-        keymap.visual(gutenberg.code_block.wrap),
-        { buffer = args.buf, desc = 'gutenberg: fence selection' }
-      )
+      -- Code: a charwise motion/selection wraps an inline code span; a
+      -- linewise one fences a code block. gutenberg.code_block.insert
+      -- has no binding — a blank-line linewise <leader>mc fences an
+      -- empty block; bind keymap.notify(gutenberg.code_block.insert) if
+      -- you want a dedicated key.
+      local function wrap_code(ctx)
+        if ctx.range ~= nil and ctx.range.mode == 'line' then
+          gutenberg.code_block.wrap(ctx)
+        else
+          gutenberg.code_span.wrap(ctx)
+        end
+      end
+      wrap('<leader>mc', wrap_code, 'inline code / fence block')
+      remove('<leader>mC', gutenberg.code_span.remove, 'remove code span')
     end,
   })
 <
@@ -535,8 +560,9 @@ files shipped with the plugin: >
   queries/markdown_inline/gutenberg.scm   inline constructs
 <
 Each capture names a construct: `@heading`, `@code_block`,
-`@list_item`, `@table`, `@link_definition`, and (inline) `@link`. To
-teach a module additional node types, place an extending query on your
+`@list_item`, `@table`, `@link_definition`, and the inline `@link`,
+`@emphasis`, `@strong`, `@strikethrough`, and `@code_span`. To teach a
+module additional node types, place an extending query on your
 'runtimepath': >query
   ;; extends
 
@@ -1032,7 +1058,11 @@ update({fn}, {ctx})                            *gutenberg.code_block.update()*
 insert({ctx})                                  *gutenberg.code_block.insert()*
     Insert an empty fenced block (the configured fence, no info
     string) at the cursor: a blank cursor row is replaced by the
-    block, any other row gets the block spliced below it.
+    block, any other row gets the block spliced below it. The
+    recommended config has no key for this — a blank-line linewise
+    `<leader>mc` fences an empty block instead — but you can bind
+    `keymap.notify(gutenberg.code_block.insert)` if you want a
+    dedicated one.
 
 wrap({ctx})                                      *gutenberg.code_block.wrap()*
     Wrap buffer rows in a fenced code block: the linewise range when
@@ -1176,6 +1206,98 @@ Field accessors:                                  *gutenberg.api.link-accessors*
         Mutate the kind in place. The caller is responsible for
         ensuring the link's other fields match the new kind's
         requirements.
+
+------------------------------------------------------------------------------
+INLINE SPANS                                          *gutenberg-inline-spans*
+
+Wrap and unwrap the four delimited inline constructs. They share one
+surface, parameterized only by their delimiters: >
+    module          reads          wrap / render emits
+    emphasis        *x* or _x_      *x*
+    strong          **x** or __x__  **x**
+    strikethrough   ~~x~~           ~~x~~
+    code_span       `x`             backticks (auto-escalated + padded)
+<
+A value is a plain table `{ text = '...' }`: the visible text with the
+delimiters stripped (and, for code spans, CommonMark padding removed).
+`read` resolves the OUTERMOST node, so it round-trips the grammar's
+nesting — `emphasis` on `***x***` reads `**x**`, `strong` reads `x`,
+and `~~x~~` (parsed as nested strikethroughs) reads `x`.
+
+Verbs — `require('gutenberg').{emphasis,strong,strikethrough,code_span}`:
+
+                                                    *gutenberg.emphasis.wrap()*
+                                                      *gutenberg.strong.wrap()*
+                                               *gutenberg.strikethrough.wrap()*
+                                                    *gutenberg.code_span.wrap()*
+wrap({ctx})
+    Wrap the text covered by the charwise `ctx.range` in the construct's
+    delimiters, using the covered text as the content. `code_span`
+    escalates the backtick run and pads as needed. Errors unless the
+    range is charwise and on a single line.
+
+                                                  *gutenberg.emphasis.remove()*
+                                                    *gutenberg.strong.remove()*
+                                             *gutenberg.strikethrough.remove()*
+                                                  *gutenberg.code_span.remove()*
+remove({ctx})
+    Replace the span at the cursor with its bare text, in a single
+    buffer update. Errors when the cursor isn't on one.
+
+Primitives — `require('gutenberg.api').{emphasis,…}`:
+
+                                        *gutenberg.api.emphasis.is_emphasis()*
+                                            *gutenberg.api.strong.is_strong()*
+                              *gutenberg.api.strikethrough.is_strikethrough()*
+                                      *gutenberg.api.code_span.is_code_span()*
+is_emphasis / is_strong / is_strikethrough / is_code_span ({ctx})
+    Whether the cursor is inside a span of that kind. Gate `read`.
+
+                                              *gutenberg.api.emphasis.read()*
+                                                *gutenberg.api.strong.read()*
+                                         *gutenberg.api.strikethrough.read()*
+                                             *gutenberg.api.code_span.read()*
+read({ctx})
+    Read the span at the cursor. Returns `(value, TSNode)`; pass the
+    node to `replace`. Errors when the cursor isn't on one.
+
+                                            *gutenberg.api.emphasis.create()*
+                                              *gutenberg.api.strong.create()*
+                                       *gutenberg.api.strikethrough.create()*
+                                           *gutenberg.api.code_span.create()*
+create({fields})
+    Build a value from `{ text }`.
+
+                                            *gutenberg.api.emphasis.render()*
+                                              *gutenberg.api.strong.render()*
+                                       *gutenberg.api.strikethrough.render()*
+                                           *gutenberg.api.code_span.render()*
+render({value})
+    Render a value to its literal markdown source. Reverse of `read`.
+    `code_span.render` grows the backtick run past any run inside the
+    text and adds one space of padding when the text has a backtick or
+    space at an edge.
+
+                                           *gutenberg.api.emphasis.replace()*
+                                             *gutenberg.api.strong.replace()*
+                                      *gutenberg.api.strikethrough.replace()*
+                                          *gutenberg.api.code_span.replace()*
+replace({node}, {values}, {ctx})
+    Replace {node}'s exact range with the rendered {values}, concatenated
+    with no separator. Pass an empty list to delete the span. Single
+    buffer write.
+
+Field accessors:                              *gutenberg-inline-spans-accessors*
+                                          *gutenberg.api.emphasis.get_text()*
+                                          *gutenberg.api.emphasis.set_text()*
+                                            *gutenberg.api.strong.get_text()*
+                                            *gutenberg.api.strong.set_text()*
+                                     *gutenberg.api.strikethrough.get_text()*
+                                     *gutenberg.api.strikethrough.set_text()*
+                                         *gutenberg.api.code_span.get_text()*
+                                         *gutenberg.api.code_span.set_text()*
+    `get_text(value)` / `set_text(value, text)` on each module read or
+    replace the value's `text` field.
 
 ------------------------------------------------------------------------------
 CONFIG                                                      *gutenberg.config*

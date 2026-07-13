@@ -79,18 +79,75 @@ describe('gutenberg.tour', function()
     assert.is_true(maps('o')['i|'] == true)
     assert.is_nil(maps('n')['i|'])
 
-    -- Edits bind normal + visual.
+    -- Edits and span wraps bind normal + visual.
     local leader = vim.g.mapleader or '\\'
-    for _, suffix in ipairs({ 'm<', 'm>', 'mx', 'mX', 'ma', 'ml', 'mc' }) do
+    for _, suffix in ipairs({
+      'm<',
+      'm>',
+      'mx',
+      'mX',
+      'ma',
+      'ml',
+      'me',
+      'mb',
+      'ms',
+      'mc',
+    }) do
       assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
       assert.is_true(maps('x')[leader .. suffix] == true, 'x ' .. suffix)
     end
 
-    -- Normal-mode-only binds.
-    for _, suffix in ipairs({ 'mf', 'mt', 'mL', 'mo', 'mO' }) do
+    -- Normal-mode-only binds (motions, pickers, and span removals).
+    for _, suffix in ipairs({
+      'mf',
+      'mt',
+      'mL',
+      'mE',
+      'mB',
+      'mS',
+      'mC',
+      'mo',
+      'mO',
+    }) do
       assert.is_true(maps('n')[leader .. suffix] == true, 'n ' .. suffix)
       assert.is_nil(maps('x')[leader .. suffix], 'x ' .. suffix)
     end
+  end)
+
+  it('dispatches <leader>mc to inline code or a fenced block', function()
+    local saved = vim.g.mapleader
+    vim.g.mapleader = ','
+    local ok, err = pcall(function()
+      local bufnr = tour.open()
+
+      local function feed(keys)
+        vim.api.nvim_feedkeys(
+          vim.api.nvim_replace_termcodes(keys, true, false, true),
+          'x',
+          false
+        )
+      end
+
+      -- Charwise selection wraps an inline code span.
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'call foo now' })
+      vim.api.nvim_win_set_cursor(0, { 1, 5 })
+      feed('viw,mc')
+      assert.same(
+        { 'call `foo` now' },
+        vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      )
+
+      -- Linewise selection fences a code block.
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'plain line' })
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      feed('V,mc')
+      assert.same(
+        { '```', 'plain line', '```' },
+        vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      )
+    end)
+    vim.g.mapleader = saved
+    assert.is_true(ok, tostring(err))
   end)
 
   it('cannot undo past the pristine document', function()
