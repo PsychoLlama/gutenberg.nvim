@@ -699,19 +699,22 @@ insert({list_node}, {index}, {items}, {ctx})      *gutenberg.api.list.insert()*
 
 read_list({ctx})                               *gutenberg.api.list.read_list()*
     Read every direct sibling of the cursor's item. Returns
-    `({ item, node }[], list_node)` in document order. The `list_node`
-    is the parent `list` TSNode — pass it back to `replace_list`.
-    Errors when the cursor isn't on a list item.
+    `({ item, node }[], list_node)` in document order. Write the
+    entries back with `replace_items`; the `list_node` is the parent
+    `list` TSNode for `insert`. Errors when the cursor isn't on a
+    list item.
 
-replace_list({list_node}, {entries}, {ctx}) *gutenberg.api.list.replace_list()*
+replace_items({entries}, {ctx})            *gutenberg.api.list.replace_items()*
     Rewrite the marker rows of each entry in a single buffer update.
-    Nested children are preserved verbatim. Use to switch markers
-    across siblings (e.g. unordered → ordered): `read_list`, mutate
-    each entry's `item` with `set_marker`, then `replace_list`.
+    Nested children are preserved verbatim. Entries may come from
+    `read_list`, `items`, or any subset of either. Use to switch
+    markers across siblings (e.g. unordered → ordered): `read_list`,
+    mutate each entry's `item` with `set_marker`, then
+    `replace_items`.
 
 renumber({items})                               *gutenberg.api.list.renumber()*
     Renumber ordered markers in {items} sequentially from 1, in place
-    (an in-memory codemod — write with `replace_list`). Each ordered
+    (an in-memory codemod — write with `replace_items`). Each ordered
     marker keeps its delimiter (`.` vs `)`); unordered items are left
     alone and don't consume a number.
 
@@ -739,7 +742,7 @@ Field accessors:                                  *gutenberg.api.list-accessors*
         Switch an item between ordered (`1.`, `2)`, ...) and
         unordered. `set_ordered` uses `gutenberg.list.Config.marker`
         for the unordered marker and `1.` for ordered. Combine with
-        `renumber` and `replace_list` to renumber siblings.
+        `renumber` and `replace_items` to renumber siblings.
     `get_checkbox(item)` / `set_checkbox(item, state)`
         Raw checkbox character. Pass nil to remove.
     `is_checked(item)` / `set_checked(item, checked)`

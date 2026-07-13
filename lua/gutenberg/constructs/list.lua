@@ -59,18 +59,6 @@ local function targets(ctx)
   return results
 end
 
---- Rewrite the marker rows of `entries` in one buffer update.
----@param bufnr integer
----@param entries { item: gutenberg.list.Item, node: TSNode }[]
-local function write_targets(bufnr, entries)
-  ---@type table<integer, string>
-  local edits = {}
-  for _, entry in ipairs(entries) do
-    edits[(entry.node:range())] = api.render(entry.item)
-  end
-  buffer.set_rows(bufnr, edits)
-end
-
 --- Read the item at the cursor, apply `fn`, and write the result back
 --- in a single buffer update. `fn` may mutate the item in place (and
 --- return nothing) or return a replacement list — return `{}` to
@@ -96,9 +84,9 @@ end
 ---@return { item: gutenberg.list.Item, node: TSNode }[] entries
 function M.update_list(fn, ctx)
   ctx = context.resolve(ctx)
-  local entries, list_node = api.read_list(ctx)
+  local entries = api.read_list(ctx)
   fn(entries)
-  api.replace_list(list_node, entries, ctx)
+  api.replace_items(entries, ctx)
   return entries
 end
 
@@ -454,7 +442,7 @@ function M.toggle_checkbox(ctx)
     api.set_checked(entry.item, not all_checked)
     table.insert(written, entry.item)
   end
-  write_targets(ctx.bufnr, entries)
+  api.replace_items(entries, ctx)
   return written
 end
 
@@ -482,7 +470,7 @@ function M.remove_checkbox(ctx)
     api.set_checkbox(entry.item, nil)
     table.insert(written, entry.item)
   end
-  write_targets(ctx.bufnr, entries)
+  api.replace_items(entries, ctx)
   return written
 end
 
@@ -515,7 +503,7 @@ function M.toggle_ordered(ctx)
   if ordered then
     api.renumber(written)
   end
-  write_targets(ctx.bufnr, entries)
+  api.replace_items(entries, ctx)
   return written
 end
 

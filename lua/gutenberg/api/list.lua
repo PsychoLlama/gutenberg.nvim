@@ -139,8 +139,9 @@ function M.replace(node, items, ctx)
 end
 
 --- Read every direct sibling of the cursor's list item. Returns the entries
---- in document order along with the parent `list` node (pass to
---- `replace_list`). Errors if the cursor isn't on a list item.
+--- in document order (write back with `replace_items`) along with the
+--- parent `list` node (pass to `insert`). Errors if the cursor isn't on a
+--- list item.
 ---@param ctx? gutenberg.Context.Partial
 ---@return { item: gutenberg.list.Item, node: TSNode }[], TSNode
 function M.read_list(ctx)
@@ -165,27 +166,19 @@ end
 
 --- Rewrite the marker rows of `entries` in a single buffer update. Each
 --- entry's `node` selects the row to overwrite; nested children below that
---- row are preserved verbatim. Use this to switch markers (e.g. ordered ↔
---- unordered) across siblings without disturbing their content.
----@param list_node TSNode The parent list returned by `read_list`.
+--- row are preserved verbatim. Entries may come from `read_list`, `items`,
+--- or any subset of either — use this to switch markers (e.g. ordered ↔
+--- unordered) without disturbing content.
 ---@param entries { item: gutenberg.list.Item, node: TSNode }[]
 ---@param ctx? gutenberg.Context.Partial
-function M.replace_list(list_node, entries, ctx)
+function M.replace_items(entries, ctx)
   ctx = context.resolve(ctx)
-  local sr = list_node:range()
-  local end_row = ts.end_row(list_node)
-  local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row, false)
-
+  ---@type table<integer, string>
+  local edits = {}
   for _, entry in ipairs(entries) do
-    local item_sr = entry.node:range()
-    local idx = item_sr - sr + 1
-    if idx < 1 or idx > #lines then
-      error('gutenberg: entry node falls outside the list range', 0)
-    end
-    lines[idx] = M.render(entry.item)
+    edits[(entry.node:range())] = M.render(entry.item)
   end
-
-  buffer.set_lines(ctx.bufnr, sr, end_row, lines)
+  buffer.set_rows(ctx.bufnr, edits)
 end
 
 --- The indent unit used by `indent` / `dedent`. Honors a configured
@@ -391,7 +384,7 @@ end
 --- falls back to `gutenberg.list.Config.marker`; the ordered marker
 --- defaults to `1.`. Callers wanting sequential numbering across a list
 --- should follow up with `set_marker(item, n .. '.')` per entry and
---- write the result with `replace_list`.
+--- write the result with `replace_items`.
 ---@param item gutenberg.list.Item
 ---@param ordered boolean
 function M.set_ordered(item, ordered)

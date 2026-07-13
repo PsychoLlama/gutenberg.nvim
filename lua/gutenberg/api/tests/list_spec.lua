@@ -345,14 +345,14 @@ describe('gutenberg.api.list', function()
     end)
   end)
 
-  describe('replace_list', function()
+  describe('replace_items', function()
     it('rewrites the marker on every sibling in one update', function()
       with_buffer({ '- foo', '- bar', '- baz' }, { 1, 2 }, function(ctx)
-        local entries, list_node = list.read_list(ctx)
+        local entries = list.read_list(ctx)
         for i, entry in ipairs(entries) do
           list.set_marker(entry.item, i .. '.')
         end
-        list.replace_list(list_node, entries, ctx)
+        list.replace_items(entries, ctx)
         assert.same(
           { '1. foo', '2. bar', '3. baz' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
@@ -365,11 +365,11 @@ describe('gutenberg.api.list', function()
         { '- outer1', '  - inner', '- outer2' },
         { 1, 2 },
         function(ctx)
-          local entries, list_node = list.read_list(ctx)
+          local entries = list.read_list(ctx)
           for _, entry in ipairs(entries) do
             list.set_marker(entry.item, '*')
           end
-          list.replace_list(list_node, entries, ctx)
+          list.replace_items(entries, ctx)
           assert.same({
             '* outer1',
             '  - inner',
@@ -384,10 +384,10 @@ describe('gutenberg.api.list', function()
         { '# heading', '', '- foo', '- bar', '', 'paragraph' },
         { 3, 2 },
         function(ctx)
-          local entries, list_node = list.read_list(ctx)
+          local entries = list.read_list(ctx)
           list.set_marker(entries[1].item, '*')
           list.set_marker(entries[2].item, '*')
-          list.replace_list(list_node, entries, ctx)
+          list.replace_items(entries, ctx)
           assert.same({
             '# heading',
             '',
@@ -402,14 +402,32 @@ describe('gutenberg.api.list', function()
 
     it('rewrites a subset of siblings without touching the rest', function()
       with_buffer({ '- foo', '- bar', '- baz' }, { 1, 2 }, function(ctx)
-        local entries, list_node = list.read_list(ctx)
+        local entries = list.read_list(ctx)
         list.set_marker(entries[2].item, '*')
-        list.replace_list(list_node, { entries[2] }, ctx)
+        list.replace_items({ entries[2] }, ctx)
         assert.same(
           { '- foo', '* bar', '- baz' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)
+    end)
+
+    it('rewrites entries from separate lists in one call', function()
+      with_buffer(
+        { '- foo', '', 'paragraph', '', '- bar' },
+        { 1, 2 },
+        function(ctx)
+          local entries = list.items(ctx)
+          for _, entry in ipairs(entries) do
+            list.set_marker(entry.item, '*')
+          end
+          list.replace_items(entries, ctx)
+          assert.same(
+            { '* foo', '', 'paragraph', '', '* bar' },
+            vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+          )
+        end
+      )
     end)
   end)
 
@@ -485,14 +503,14 @@ describe('gutenberg.api.list', function()
       assert.equal('+', item.marker)
     end)
 
-    it('composes with replace_list to renumber siblings', function()
+    it('composes with replace_items to renumber siblings', function()
       with_buffer({ '- foo', '- bar', '- baz' }, { 1, 2 }, function(ctx)
-        local entries, list_node = list.read_list(ctx)
+        local entries = list.read_list(ctx)
         for i, entry in ipairs(entries) do
           list.set_ordered(entry.item, true)
           list.set_marker(entry.item, i .. '.')
         end
-        list.replace_list(list_node, entries, ctx)
+        list.replace_items(entries, ctx)
         assert.same(
           { '1. foo', '2. bar', '3. baz' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)

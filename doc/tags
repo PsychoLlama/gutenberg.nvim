@@ -59,7 +59,7 @@ gutenberg.api.list.read_list()	gutenberg.txt	/*gutenberg.api.list.read_list()*
 gutenberg.api.list.render()	gutenberg.txt	/*gutenberg.api.list.render()*
 gutenberg.api.list.renumber()	gutenberg.txt	/*gutenberg.api.list.renumber()*
 gutenberg.api.list.replace()	gutenberg.txt	/*gutenberg.api.list.replace()*
-gutenberg.api.list.replace_list()	gutenberg.txt	/*gutenberg.api.list.replace_list()*
+gutenberg.api.list.replace_items()	gutenberg.txt	/*gutenberg.api.list.replace_items()*
 gutenberg.api.table	gutenberg.txt	/*gutenberg.api.table*
 gutenberg.api.table.cell_range()	gutenberg.txt	/*gutenberg.api.table.cell_range()*
 gutenberg.api.table.column_at()	gutenberg.txt	/*gutenberg.api.table.column_at()*
