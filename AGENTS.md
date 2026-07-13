@@ -32,8 +32,17 @@
 - Parse with Treesitter, never by hand. It doesn't serialize—apply edits via `nvim_buf_set_text` over node ranges.
 - Only pay for what you use. Defer work until a module is imported or a function is called. Cache where appropriate.
 
-## Docs
+## Documentation
 
 - Update `CHANGELOG.md` under `[Unreleased]` for user-facing changes.
 - Keep `doc/gutenberg.txt` in sync with API/config changes. Regenerate tags with `just gen-helptags`.
 - Vim help syntax reference: `$VIMRUNTIME/doc/` (get path with `nvim --headless -c 'echo $VIMRUNTIME' -c quit 2>&1`)
+
+## Releasing
+
+- Run `just check` first. Abort if it fails.
+- Move `[Unreleased]` changelog entries to a new version section with date.
+- Update comparison links at the bottom of `CHANGELOG.md`.
+- Create annotated tag: `git tag -a v0.X.Y -m "v0.X.Y"`
+- Push with tags: `git push && git push --tags`
+- Create GitHub release: `gh release create v0.X.Y --title "v0.X.Y" --notes "<changelog content>"`
