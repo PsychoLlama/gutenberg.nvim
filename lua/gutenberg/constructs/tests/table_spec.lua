@@ -424,12 +424,22 @@ describe('gutenberg.table', function()
           end
         end
         local want = table.remove(queue, 1)
+        ---@type integer?
+        local pick
         for i, label in ipairs(labels) do
           if label == want then
-            return on_choice(items[i], i)
+            pick = i
+            break
           end
         end
-        return on_choice(nil, nil)
+        if pick ~= nil then
+          on_choice(items[pick], pick)
+        else
+          on_choice(nil, nil)
+        end
+        -- `actions` defers the chosen action with `vim.schedule`; drain
+        -- it so the buffer edit lands before the test asserts.
+        vim.wait(0)
       end
       ---@diagnostic disable-next-line: duplicate-set-field
       vim.ui.input = function(_, on_confirm)

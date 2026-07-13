@@ -172,7 +172,12 @@ function M.actions(ctx)
     if choice == nil then
       return
     end
-    choice.run()
+    -- Defer to the next tick so the picker has fully torn down before an
+    -- action opens its own `vim.ui.input`. Some select/input providers
+    -- stall for ~1s when a second prompt is requested from inside the
+    -- first's `on_choice`. `ctx`, `row`, and `col` are already resolved,
+    -- so nothing here depends on the cursor staying put.
+    vim.schedule(choice.run)
   end)
 end
 
