@@ -28,7 +28,11 @@ typecheck:
   export VIMRUNTIME=$(nvim --clean --headless --cmd 'echo $VIMRUNTIME | q' 2>&1)
   lua-language-server --check . --checklevel=Error
 
-# Run all checks (lint + typecheck + test + fmt), reporting all failures.
+# Build the plugin package to catch fileset/packaging regressions.
+build:
+  nix build
+
+# Run all checks (lint + typecheck + test + fmt + build), reporting all failures.
 check:
   #!/usr/bin/env bash
   failed=0
@@ -36,4 +40,5 @@ check:
   just typecheck || failed=1
   just test || failed=1
   just fmt-check || failed=1
+  just build || failed=1
   exit $failed
