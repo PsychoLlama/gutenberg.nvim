@@ -59,6 +59,24 @@ local function targets(ctx)
   return results
 end
 
+--- Mutate the targeted items (see `targets`) through `fn` and rewrite
+--- their marker rows in one buffer update. `fn` receives the items in
+--- document order and mutates them in place.
+---@param ctx gutenberg.Context
+---@param fn fun(items: gutenberg.list.Item[])
+---@return gutenberg.list.Item[] written
+local function bulk(ctx, fn)
+  local entries = targets(ctx)
+  ---@type gutenberg.list.Item[]
+  local items = {}
+  for _, entry in ipairs(entries) do
+    table.insert(items, entry.item)
+  end
+  fn(items)
+  api.replace_items(entries, ctx)
+  return items
+end
+
 --- Read the item at the cursor, apply `fn`, and write the result back
 --- in a single buffer update. `fn` may mutate the item in place (and
 --- return nothing) or return a replacement list — return `{}` to
@@ -151,6 +169,18 @@ local function shift_targets(ctx)
   return results
 end
 
+--- The marker child of a `list_item` node, or nil on a malformed item.
+---@param node TSNode
+---@return TSNode?
+local function marker_node(node)
+  for child in node:iter_children() do
+    if child:type():match('^list_marker') ~= nil then
+      return child
+    end
+  end
+  return nil
+end
+
 --- Renumber every ordered sibling group `lines` would parse into, in
 --- place. The candidate text is reparsed standalone, so the groups
 --- reflect the tree the pending write produces — not the stale one in
@@ -179,14 +209,7 @@ local function renumber_lines(lines)
     ---@type gutenberg.list.Item[]
     local items = {}
     for _, node in ipairs(groups[key]) do
-      ---@type TSNode?
-      local marker
-      for child in node:iter_children() do
-        if child:type():match('^list_marker') ~= nil then
-          marker = child
-          break
-        end
-      end
+      local marker = marker_node(node)
       if marker ~= nil then
         local sr, sc, _, ec = marker:range()
         local text = vim.treesitter.get_node_text(marker, source)
@@ -232,14 +255,7 @@ local function nesting_col(node, bufnr)
     return nil
   end
 
-  ---@type TSNode?
-  local marker
-  for child in prev:iter_children() do
-    if child:type():match('^list_marker') ~= nil then
-      marker = child
-      break
-    end
-  end
+  local marker = marker_node(prev)
   if marker == nil then
     return nil
   end
@@ -427,23 +443,18 @@ function M.toggle_checkbox(ctx)
     end, ctx)
   end
 
-  local entries = targets(ctx)
-  local all_checked = true
-  for _, entry in ipairs(entries) do
-    if api.is_checked(entry.item) ~= true then
-      all_checked = false
-      break
+  return bulk(ctx, function(items)
+    local all_checked = true
+    for _, item in ipairs(items) do
+      if api.is_checked(item) ~= true then
+        all_checked = false
+        break
+      end
     end
-  end
-
-  ---@type gutenberg.list.Item[]
-  local written = {}
-  for _, entry in ipairs(entries) do
-    api.set_checked(entry.item, not all_checked)
-    table.insert(written, entry.item)
-  end
-  api.replace_items(entries, ctx)
-  return written
+    for _, item in ipairs(items) do
+      api.set_checked(item, not all_checked)
+    end
+  end)
 end
 
 --- Remove the checkbox from the item at the cursor, turning a task
@@ -463,15 +474,11 @@ function M.remove_checkbox(ctx)
     end, ctx)
   end
 
-  local entries = targets(ctx)
-  ---@type gutenberg.list.Item[]
-  local written = {}
-  for _, entry in ipairs(entries) do
-    api.set_checkbox(entry.item, nil)
-    table.insert(written, entry.item)
-  end
-  api.replace_items(entries, ctx)
-  return written
+  return bulk(ctx, function(items)
+    for _, item in ipairs(items) do
+      api.set_checkbox(item, nil)
+    end
+  end)
 end
 
 --- Switch the item at the cursor between ordered and unordered (see
@@ -492,19 +499,15 @@ function M.toggle_ordered(ctx)
     end, ctx)
   end
 
-  local entries = targets(ctx)
-  local ordered = not api.is_ordered(entries[1].item)
-  ---@type gutenberg.list.Item[]
-  local written = {}
-  for _, entry in ipairs(entries) do
-    api.set_ordered(entry.item, ordered)
-    table.insert(written, entry.item)
-  end
-  if ordered then
-    api.renumber(written)
-  end
-  api.replace_items(entries, ctx)
-  return written
+  return bulk(ctx, function(items)
+    local ordered = not api.is_ordered(items[1])
+    for _, item in ipairs(items) do
+      api.set_ordered(item, ordered)
+    end
+    if ordered then
+      api.renumber(items)
+    end
+  end)
 end
 
 --- Switch the cursor item and all of its direct siblings between

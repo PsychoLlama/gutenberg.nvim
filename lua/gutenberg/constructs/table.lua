@@ -54,12 +54,12 @@ local function land(ctx, sr, target_row, target_col)
     return
   end
   local probe = { bufnr = ctx.bufnr, cursor = { sr + 1, 0 } }
-  local ok, _, current = pcall(api.read, probe)
-  if not ok or current == nil then
+  local ok, _, node = pcall(api.read, probe)
+  if not ok or node == nil then
     return
   end
 
-  local range = api.cell_range(current, target_row, target_col, probe)
+  local range = api.cell_range(node, target_row, target_col, probe)
   if range ~= nil then
     vim.api.nvim_win_set_cursor(0, { range.start[1], range.start[2] })
     return
