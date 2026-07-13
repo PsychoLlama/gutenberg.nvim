@@ -3,6 +3,7 @@
 ---@field code_block gutenberg.code_block
 ---@field code_span gutenberg.code_span
 ---@field config gutenberg.config
+---@field default_keymaps gutenberg.default_keymaps
 ---@field emphasis gutenberg.emphasis
 ---@field health gutenberg.health
 ---@field heading gutenberg.heading
@@ -17,7 +18,11 @@ local M = {}
 
 ---@param opts? gutenberg.Config.Partial
 function M.setup(opts)
-  require('gutenberg.config').merge(opts)
+  local config = require('gutenberg.config')
+  config.merge(opts)
+  if config.get().default_keymaps.enable then
+    require('gutenberg.default_keymaps').enable()
+  end
 end
 
 --- Require `name`, returning nil when the module doesn't exist. A

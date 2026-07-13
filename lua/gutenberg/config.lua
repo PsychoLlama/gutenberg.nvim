@@ -50,7 +50,16 @@
 ---@class gutenberg.strong.Config: gutenberg.strong.Config.Partial
 ---@field delimiter string
 
+---@class gutenberg.default_keymaps.Config.Partial
+---@field enable? boolean Bind the recommended keymaps (:h gutenberg-recommended-config) on FileType. Off by default — gutenberg ships no keymaps unless asked.
+---@field filetypes? string[] Filetypes to bind in. Dotted compounds match the full 'filetype' value, hence the explicit 'markdown.mdx' entry.
+
+---@class gutenberg.default_keymaps.Config: gutenberg.default_keymaps.Config.Partial
+---@field enable boolean
+---@field filetypes string[]
+
 ---@class gutenberg.Config.Partial
+---@field default_keymaps? gutenberg.default_keymaps.Config.Partial
 ---@field list? gutenberg.list.Config.Partial
 ---@field heading? gutenberg.heading.Config.Partial
 ---@field table? gutenberg.table.Config.Partial
@@ -60,6 +69,7 @@
 ---@field strong? gutenberg.strong.Config.Partial
 
 ---@class gutenberg.Config: gutenberg.Config.Partial
+---@field default_keymaps gutenberg.default_keymaps.Config
 ---@field list gutenberg.list.Config
 ---@field heading gutenberg.heading.Config
 ---@field table gutenberg.table.Config
@@ -70,6 +80,10 @@
 
 ---@type gutenberg.Config
 local defaults = {
+  default_keymaps = {
+    enable = false,
+    filetypes = { 'markdown', 'markdown.mdx', 'mdx' },
+  },
   list = {
     marker = '-',
     default_checked = true,

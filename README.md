@@ -48,7 +48,14 @@ pre-wired so you can try every feature without configuring anything:
 :lua require('gutenberg').tour()
 ```
 
-Then copy the recommended keymaps into your config and adjust to taste:
+Then enable the same keymaps for your markdown buffers — or copy them
+into your config and adjust to taste:
+
+```lua
+require('gutenberg').setup({
+  default_keymaps = { enable = true },
+})
+```
 
 ```viml
 :help gutenberg-recommended-config

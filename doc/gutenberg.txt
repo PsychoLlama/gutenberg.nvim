@@ -39,9 +39,11 @@ Where to go next:
 SETUP                                                        *gutenberg.setup*
 
 Optional — gutenberg works out of the box. Call `setup` to change the
-defaults listed in |gutenberg.config|:
+defaults listed in |gutenberg.config|, or to opt into the recommended
+keymaps (|gutenberg-recommended-config|):
 >lua
   require('gutenberg').setup{
+    default_keymaps = { enable = true },
     list = { default_checked = false },
   }
 <
@@ -149,7 +151,7 @@ The verbs are designed to be bound. |gutenberg.keymap| supplies
 the adapters — dot-repeat, counts, operators, live visual ranges — and
 the notify edge, so a binding is one line per mode. Two tiny glue
 helpers cover almost everything (the same helpers the recommended
-config below and the tour use):
+config is built from):
 >lua
   local gutenberg = require('gutenberg')
   local keymap = gutenberg.keymap
@@ -226,10 +228,21 @@ primitives it is built from:
 <
 ------------------------------------------------------------------------------
 RECOMMENDED CONFIG                              *gutenberg-recommended-config*
-
-A complete, copyable starting point. It scopes the maps to markdown and
-MDX buffers, surfaces failures as notifications, and gives every edit
-counts, visual mode, and `.`-repeat:
+                                                    *gutenberg.default_keymaps*
+A complete starting point, off by default. Opt in through
+|gutenberg.setup|:
+>lua
+  require('gutenberg').setup{
+    default_keymaps = {
+      enable = true,
+      -- The default scope; pass your own list to change it.
+      filetypes = { 'markdown', 'markdown.mdx', 'mdx' },
+    },
+  }
+<
+This binds the maps below to every matching buffer — buffer-locally, on
+|FileType|, nothing global. Failures surface as notifications, and
+every edit gets counts, visual mode, and `.`-repeat:
 
   Motions (n, x, o — count-aware, operator-friendly) ~
     ]E  [E        next / previous table
@@ -269,194 +282,25 @@ sections (heading navigation) and `gO` to open a section outline.
 Link EDITING has no binding on purpose: the URL and text of
 `[text](url)` are plain delimited text, so builtin `ci(` and `ci[`
 already edit them.
->lua
-  vim.api.nvim_create_autocmd('FileType', {
-    pattern = { 'markdown', 'markdown.mdx', 'mdx' },
-    callback = function(args)
-      local gutenberg = require('gutenberg')
-      local keymap = gutenberg.keymap
 
-      -- A cursor motion: count-aware, usable as an operator target.
-      local function motion(lhs, fn, desc)
-        vim.keymap.set({ 'n', 'x', 'o' }, lhs, function()
-          keymap.notify(function()
-            fn({ count = vim.v.count1 })
-          end)
-        end, { buffer = args.buf, desc = 'gutenberg: ' .. desc })
-      end
+The bindings live in `lua/gutenberg/default_keymaps.lua`, written to be
+read: every map is a verb (or an `is_*` dispatch across verbs) wrapped
+in a |gutenberg.keymap| adapter, built from the same two glue helpers
+as |gutenberg-recipes|. It doubles as the reference implementation —
+to change a binding, leave `enable` off and copy what you want into
+your own |FileType| autocmd.
 
-      -- An edit: count + `.`-repeat in normal mode, bulk over the
-      -- selection in visual mode.
-      local function edit(lhs, fn, desc)
-        vim.keymap.set('n', lhs, keymap.repeatable(fn), {
-          buffer = args.buf,
-          expr = true,
-          desc = 'gutenberg: ' .. desc,
-        })
-        vim.keymap.set('x', lhs, keymap.visual(fn), {
-          buffer = args.buf,
-          desc = 'gutenberg: ' .. desc,
-        })
-      end
+Buffers that already carry a matching filetype when `setup` runs are
+bound immediately, so plugin managers that load gutenberg lazily on
+the |FileType| event work without ceremony.
 
-      -- Motions. Heading navigation is left to the builtin markdown
-      -- ftplugin's `[[` / `]]` (see |ft-markdown-plugin|).
-      motion(']E', gutenberg.table.next_table, 'next table')
-      motion('[E', gutenberg.table.prev_table, 'previous table')
-      motion(']e', gutenberg.table.next_cell, 'next table cell')
-      motion('[e', gutenberg.table.prev_cell, 'previous table cell')
+                                            *gutenberg.default_keymaps.apply()*
+apply({bufnr})
+    Bind the full recommended set into {bufnr}, buffer-locally. This is
+    what the |FileType| autocmd calls and what |gutenberg.tour| applies
+    to its scratch buffer. Use it to adopt the whole set in buffers the
+    `filetypes` list can't describe.
 
-      -- Inner-cell textobject. Off-table it errors before selecting,
-      -- which cancels a pending operator and notifies.
-      vim.keymap.set({ 'x', 'o' }, 'i|', function()
-        keymap.notify(gutenberg.table.select_cell)
-      end, { buffer = args.buf, desc = 'gutenberg: inner table cell' })
-
-      -- Hierarchy: headings, list items, and table columns share a
-      -- left/right axis.
-      edit('<leader>m<', function(ctx)
-        if gutenberg.api.heading.is_heading(ctx) then
-          gutenberg.heading.promote(ctx)
-        elseif gutenberg.api.list.is_list_item(ctx) then
-          gutenberg.list.dedent(ctx)
-        elseif gutenberg.api.table.is_table(ctx) then
-          gutenberg.table.move_column_left(ctx)
-        else
-          error('gutenberg: nothing under the cursor to shift left', 0)
-        end
-      end, 'promote heading / dedent item / move column left')
-
-      edit('<leader>m>', function(ctx)
-        if gutenberg.api.heading.is_heading(ctx) then
-          gutenberg.heading.demote(ctx)
-        elseif gutenberg.api.list.is_list_item(ctx) then
-          gutenberg.list.indent(ctx)
-        elseif gutenberg.api.table.is_table(ctx) then
-          gutenberg.table.move_column_right(ctx)
-        else
-          error('gutenberg: nothing under the cursor to shift right', 0)
-        end
-      end, 'demote heading / indent item / move column right')
-
-      -- Lists
-      edit('<leader>mx', gutenberg.list.toggle_checkbox, 'toggle checkbox')
-      edit('<leader>mX', gutenberg.list.remove_checkbox, 'remove checkbox')
-
-      -- Append / prepend a sibling — a list item or a table row,
-      -- whichever is under the cursor — then drop into insert mode on
-      -- it. Lists land at the end of the fresh marker (startinsert!);
-      -- table cells land inside the first cell (startinsert).
-      local function insert_sibling(where)
-        return function()
-          keymap.notify(function()
-            local ctx = { count = vim.v.count1 }
-            if gutenberg.api.list.is_list_item(ctx) then
-              gutenberg.list.insert_item({ where = where }, ctx)
-              vim.cmd('startinsert!')
-            elseif gutenberg.api.table.is_table(ctx) then
-              gutenberg.table.insert_row({ where = where }, ctx)
-              vim.cmd('startinsert')
-            else
-              error('gutenberg: no list or table under the cursor', 0)
-            end
-          end)
-        end
-      end
-      vim.keymap.set('n', '<leader>mo', insert_sibling('below'), {
-        buffer = args.buf,
-        desc = 'gutenberg: append item / row',
-      })
-      vim.keymap.set('n', '<leader>mO', insert_sibling('above'), {
-        buffer = args.buf,
-        desc = 'gutenberg: prepend item / row',
-      })
-
-      -- Tables
-      vim.keymap.set('n', '<leader>mf', function()
-        keymap.notify(gutenberg.table.format)
-      end, { buffer = args.buf, desc = 'gutenberg: format table' })
-
-      -- The "alignment axis": toggle a list ordered, or cycle a table
-      -- column's alignment. A plain press converts the whole sibling
-      -- list; a visual selection converts just its items.
-      edit('<leader>ma', function(ctx)
-        if gutenberg.api.list.is_list_item(ctx) then
-          if ctx.range ~= nil then
-            gutenberg.list.toggle_ordered(ctx)
-          else
-            gutenberg.list.toggle_ordered_list(ctx)
-          end
-        elseif gutenberg.api.table.is_table(ctx) then
-          gutenberg.table.cycle_alignment(ctx)
-        else
-          error('gutenberg: no list or table under the cursor', 0)
-        end
-      end, 'toggle ordered list / cycle column alignment')
-
-      vim.keymap.set('n', '<leader>mt', function()
-        keymap.notify(gutenberg.table.actions)
-      end, { buffer = args.buf, desc = 'gutenberg: table actions' })
-
-      -- Inline spans: wrap a motion (n) or selection (x) in delimiters.
-      local function wrap(lhs, verb, desc)
-        vim.keymap.set('n', lhs, keymap.operator(verb), {
-          buffer = args.buf,
-          expr = true,
-          desc = 'gutenberg: ' .. desc,
-        })
-        vim.keymap.set('x', lhs, keymap.visual(verb), {
-          buffer = args.buf,
-          desc = 'gutenberg: ' .. desc,
-        })
-      end
-
-      -- Remove the span under the cursor (`.`-repeatable).
-      local function remove(lhs, verb, desc)
-        vim.keymap.set('n', lhs, keymap.repeatable(verb), {
-          buffer = args.buf,
-          expr = true,
-          desc = 'gutenberg: ' .. desc,
-        })
-      end
-
-      -- Links prompt for the URL; the other spans wrap directly.
-      local function wrap_link(ctx)
-        vim.ui.input({ prompt = 'URL: ' }, function(input)
-          if input == nil then
-            return
-          end
-          keymap.notify(function()
-            gutenberg.link.wrap({ url = input }, ctx)
-          end)
-        end)
-      end
-      wrap('<leader>ml', wrap_link, 'wrap in link')
-      remove('<leader>mL', gutenberg.link.remove, 'remove link')
-
-      wrap('<leader>me', gutenberg.emphasis.wrap, 'wrap in emphasis')
-      remove('<leader>mE', gutenberg.emphasis.remove, 'remove emphasis')
-      wrap('<leader>mb', gutenberg.strong.wrap, 'wrap in strong')
-      remove('<leader>mB', gutenberg.strong.remove, 'remove strong')
-      wrap('<leader>ms', gutenberg.strikethrough.wrap, 'wrap in strikethrough')
-      remove('<leader>mS', gutenberg.strikethrough.remove, 'remove strikethrough')
-
-      -- Code: a charwise motion/selection wraps an inline code span; a
-      -- linewise one fences a code block. gutenberg.code_block.insert
-      -- has no binding — a blank-line linewise <leader>mc fences an
-      -- empty block; bind keymap.notify(gutenberg.code_block.insert) if
-      -- you want a dedicated key.
-      local function wrap_code(ctx)
-        if ctx.range ~= nil and ctx.range.mode == 'line' then
-          gutenberg.code_block.wrap(ctx)
-        else
-          gutenberg.code_span.wrap(ctx)
-        end
-      end
-      wrap('<leader>mc', wrap_code, 'inline code / fence block')
-      remove('<leader>mC', gutenberg.code_span.remove, 'remove code span')
-    end,
-  })
-<
 ==============================================================================
 KEYMAP HELPERS                                                *gutenberg.keymap*
 
@@ -508,8 +352,9 @@ caller knows which one it is.
 
 Three sanctioned exceptions carry that edge for you: the
 |gutenberg.keymap| adapters pcall their callbacks and notify at WARN,
-the |gutenberg.tour| buffer notifies in its own keymaps, and
-|gutenberg.table.actions()| notifies from its prompt callbacks (its
+the recommended keymaps (|gutenberg.default_keymaps|, shared by the
+|gutenberg.tour| buffer) ride those adapters and prompt for link URLs,
+and |gutenberg.table.actions()| notifies from its prompt callbacks (its
 off-table error still throws synchronously). Everything else stays
 headless.
 
@@ -1321,6 +1166,10 @@ CONFIG                                                      *gutenberg.config*
 |gutenberg.setup| accepts a `gutenberg.Config` table. Defaults:
 >lua
   {
+    default_keymaps = {
+      enable = false,          -- bind the recommended keymaps
+      filetypes = { 'markdown', 'markdown.mdx', 'mdx' },
+    },
     list = {
       marker = '-',            -- bullet for new/unordered items
       indent = nil,            -- indent unit; nil = derive from buffer
@@ -1347,6 +1196,17 @@ CONFIG                                                      *gutenberg.config*
     },
   }
 <
+                                             *gutenberg.default_keymaps.Config*
+`default_keymaps.enable`  Bind the recommended keymaps
+                        (|gutenberg-recommended-config|) on |FileType|.
+                        Off by default — gutenberg ships no keymaps
+                        unless asked.
+`default_keymaps.filetypes` Filetypes to bind in. A dotted compound
+                        filetype matches the full 'filetype' value,
+                        hence the explicit `markdown.mdx` entry in the
+                        default. Passing a list replaces the default
+                        wholesale.
+
                                                        *gutenberg.list.Config*
 `list.marker`             Default bullet marker for new items.
 `list.indent`             Whitespace unit for |gutenberg.api.list.indent()| /

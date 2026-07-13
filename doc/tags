@@ -120,6 +120,9 @@ gutenberg.code_span.remove()	gutenberg.txt	/*gutenberg.code_span.remove()*
 gutenberg.code_span.wrap()	gutenberg.txt	/*gutenberg.code_span.wrap()*
 gutenberg.config	gutenberg.txt	/*gutenberg.config*
 gutenberg.context	gutenberg.txt	/*gutenberg.context*
+gutenberg.default_keymaps	gutenberg.txt	/*gutenberg.default_keymaps*
+gutenberg.default_keymaps.Config	gutenberg.txt	/*gutenberg.default_keymaps.Config*
+gutenberg.default_keymaps.apply()	gutenberg.txt	/*gutenberg.default_keymaps.apply()*
 gutenberg.emphasis.Config	gutenberg.txt	/*gutenberg.emphasis.Config*
 gutenberg.emphasis.remove()	gutenberg.txt	/*gutenberg.emphasis.remove()*
 gutenberg.emphasis.wrap()	gutenberg.txt	/*gutenberg.emphasis.wrap()*
