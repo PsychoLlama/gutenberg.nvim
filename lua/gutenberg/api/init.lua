@@ -1,8 +1,12 @@
 ---@class gutenberg.api
 ---@field code_block gutenberg.api.code_block
+---@field code_span gutenberg.api.code_span
+---@field emphasis gutenberg.api.emphasis
 ---@field heading gutenberg.api.heading
 ---@field link gutenberg.api.link
 ---@field list gutenberg.api.list
+---@field strikethrough gutenberg.api.strikethrough
+---@field strong gutenberg.api.strong
 ---@field table gutenberg.api.table
 local M = {}
 
