@@ -231,6 +231,25 @@ function M.end_row(node)
   return er + 1
 end
 
+--- The last row owned by `node` that holds non-whitespace text
+--- (inclusive), or the node's start row when every row is blank.
+--- `list` / `list_item` ranges greedily extend into trailing blank
+--- lines (and past EOF on the last item); clamp writes with this so
+--- they never touch rows the construct doesn't really own.
+---@param node TSNode
+---@param bufnr integer
+---@return integer
+function M.content_end(node, bufnr)
+  local sr = node:range()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, sr, M.end_row(node), false)
+  for i = #lines, 1, -1 do
+    if lines[i]:match('%S') ~= nil then
+      return sr + i - 1
+    end
+  end
+  return sr
+end
+
 --- The container prefix on `node`'s first row: the text in the columns
 --- before the node's start, e.g. `> ` when the node sits inside a block
 --- quote. Prepend it to rewritten lines so the container survives the

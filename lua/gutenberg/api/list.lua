@@ -188,23 +188,6 @@ function M.replace_list(list_node, entries, ctx)
   buffer.set_lines(ctx.bufnr, sr, end_row, lines)
 end
 
---- The last row owned by `node` (inclusive). list_item / list ranges can
---- extend past their content into trailing blanks; clamp to the last row
---- with non-whitespace text so we don't mangle unrelated rows.
----@param node TSNode
----@param bufnr integer
----@return integer sr, integer end_row
-local function content_rows(node, bufnr)
-  local sr = node:range()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, sr, ts.end_row(node), false)
-  for i = #lines, 1, -1 do
-    if lines[i]:match('%S') ~= nil then
-      return sr, sr + i - 1
-    end
-  end
-  return sr, sr
-end
-
 --- The indent unit used by `indent` / `dedent`. Honors a configured
 --- `list.indent`; falls back to the buffer's `&expandtab` and
 --- `&tabstop` so the result matches whatever indentation the buffer is
@@ -233,7 +216,8 @@ end
 function M.indent(node, ctx)
   ctx = context.resolve(ctx)
   local indent = M.indent_unit(ctx.bufnr)
-  local sr, end_row = content_rows(node, ctx.bufnr)
+  local sr = node:range()
+  local end_row = ts.content_end(node, ctx.bufnr)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
   for i, line in ipairs(lines) do
     lines[i] = indent .. line
@@ -249,7 +233,8 @@ end
 function M.dedent(node, ctx)
   ctx = context.resolve(ctx)
   local indent = M.indent_unit(ctx.bufnr)
-  local sr, end_row = content_rows(node, ctx.bufnr)
+  local sr = node:range()
+  local end_row = ts.content_end(node, ctx.bufnr)
   local lines = vim.api.nvim_buf_get_lines(ctx.bufnr, sr, end_row + 1, false)
   local strip = #indent
   for i, line in ipairs(lines) do
@@ -322,7 +307,7 @@ end
 ---@param ctx? gutenberg.Context.Partial
 function M.append(node, items, ctx)
   ctx = context.resolve(ctx)
-  local _, end_row = content_rows(node, ctx.bufnr)
+  local end_row = ts.content_end(node, ctx.bufnr)
   splice(ctx.bufnr, end_row + 1, items)
 end
 
@@ -362,7 +347,7 @@ function M.insert(list_node, index, items, ctx)
   if last == nil then
     error('gutenberg: list has no items to insert around', 0)
   end
-  local _, end_row = content_rows(last, ctx.bufnr)
+  local end_row = ts.content_end(last, ctx.bufnr)
   splice(ctx.bufnr, end_row + 1, items)
 end
 

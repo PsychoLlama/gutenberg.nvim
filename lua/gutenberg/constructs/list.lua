@@ -102,23 +102,6 @@ function M.update_list(fn, ctx)
   return entries
 end
 
---- The last content row owned by `node` (inclusive): list_item and
---- list ranges greedily extend into trailing blanks, so clamp to the
---- last row holding text.
----@param node TSNode
----@param bufnr integer
----@return integer
-local function content_end(node, bufnr)
-  local sr = node:range()
-  local rows = vim.api.nvim_buf_get_lines(bufnr, sr, ts.end_row(node), false)
-  for i = #rows, 1, -1 do
-    if rows[i]:match('%S') ~= nil then
-      return sr + i - 1
-    end
-  end
-  return sr
-end
-
 --- The outermost `list` node enclosing `node` — the span every group
 --- affected by an indent shift lives inside.
 ---@param node TSNode A `list_item` node.
@@ -359,7 +342,7 @@ local function shift(direction, ctx)
   for _, node in ipairs(nodes) do
     local list_node = outer_list(node)
     local sr = list_node:range()
-    local stop = content_end(list_node, ctx.bufnr)
+    local stop = ts.content_end(list_node, ctx.bufnr)
     span_start = math.min(span_start or sr, sr)
     span_stop = math.max(span_stop or stop, stop)
   end
@@ -372,7 +355,7 @@ local function shift(direction, ctx)
     local prefix = direction == 1 and indent_prefix(node, ctx) or ''
     local strip = direction == -1 and dedent_strip(node, ctx.count) or 0
     local sr = node:range()
-    for row = sr, content_end(node, ctx.bufnr) do
+    for row = sr, ts.content_end(node, ctx.bufnr) do
       local index = row - span_start + 1
       local line = lines[index]
       if direction == 1 then
@@ -593,14 +576,14 @@ function M.insert_item(opts, ctx)
   -- ordered items still parse as list_items, so the new one counts.
   local list_node = outer_list(node)
   local span_start = list_node:range()
-  local span_stop = content_end(list_node, ctx.bufnr)
+  local span_stop = ts.content_end(list_node, ctx.bufnr)
   local lines =
     vim.api.nvim_buf_get_lines(ctx.bufnr, span_start, span_stop + 1, false)
 
   ---@type integer
   local insert_row
   if where == 'below' then
-    insert_row = content_end(node, ctx.bufnr) + 1
+    insert_row = ts.content_end(node, ctx.bufnr) + 1
   else
     insert_row = (node:range())
   end
