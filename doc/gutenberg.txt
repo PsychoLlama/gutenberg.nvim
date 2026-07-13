@@ -255,8 +255,8 @@ counts, visual mode, and `.`-repeat:
     <leader>ml    wrap in a link; prompts for the URL — empty is fine,
                   `[text]()` is legal
     <leader>mL    remove the link under the cursor (`.`-repeatable)
-    <leader>me <leader>mE    emphasis    `*x*`
-    <leader>mb <leader>mB    strong      `**x**`
+    <leader>me <leader>mE    emphasis    `_x_`   (delimiter configurable)
+    <leader>mb <leader>mB    strong      `**x**` (delimiter configurable)
     <leader>ms <leader>mS    strikethrough  `~~x~~`
     <leader>mc    charwise: wrap an inline code span `` `x` ``;
                   linewise: fence a code block
@@ -1225,11 +1225,15 @@ INLINE SPANS                                          *gutenberg-inline-spans*
 Wrap and unwrap the four delimited inline constructs. They share one
 surface, parameterized only by their delimiters: >
     module          reads          wrap / render emits
-    emphasis        *x* or _x_      *x*
-    strong          **x** or __x__  **x**
+    emphasis        *x* or _x_      _x_  (configurable)
+    strong          **x** or __x__  **x**  (configurable)
     strikethrough   ~~x~~           ~~x~~
     code_span       `x`             backticks (auto-escalated + padded)
 <
+`emphasis` and `strong` emit the delimiter configured under
+|gutenberg.emphasis.Config| / |gutenberg.strong.Config| — prettier's `_`
+and `**` by default. `read` accepts either spelling regardless; only
+`render` (and the verbs and `replace` that build on it) picks a side.
 A value is a plain table `{ text = '...' }`: the visible text with the
 delimiters stripped (and, for code spans, CommonMark padding removed).
 `read` resolves the OUTERMOST node, so it round-trips the grammar's
@@ -1335,6 +1339,12 @@ CONFIG                                                      *gutenberg.config*
     link = {
       default_kind = 'inline', -- kind used when create() omits one
     },
+    emphasis = {
+      delimiter = '_',         -- '_' or '*'
+    },
+    strong = {
+      delimiter = '**',        -- '**' or '__'
+    },
   }
 <
                                                        *gutenberg.list.Config*
@@ -1362,5 +1372,17 @@ CONFIG                                                      *gutenberg.config*
                                                        *gutenberg.link.Config*
 `link.default_kind`       |gutenberg.link.Kind| used when
                         |gutenberg.api.link.create()| omits one.
+
+                                                   *gutenberg.emphasis.Config*
+`emphasis.delimiter`      Delimiter |gutenberg.api.emphasis.render()| wraps
+                        emphasized text in. Prettier's `_` by default;
+                        `*` is the common alternative. `read` still
+                        accepts either spelling.
+
+                                                     *gutenberg.strong.Config*
+`strong.delimiter`        Delimiter |gutenberg.api.strong.render()| wraps
+                        strong (bold) text in. Prettier's `**` by
+                        default; `__` is the alternative. `read` still
+                        accepts either spelling.
 
 vim: ft=help tw=78:

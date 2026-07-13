@@ -73,13 +73,24 @@ describe('gutenberg.api.emphasis', function()
   end)
 
   describe('render', function()
-    it('always emits `*` delimiters', function()
-      assert.equal('*x*', emphasis.render({ text = 'x' }))
+    it('emits the configured delimiter, default `_`', function()
+      assert.equal('_x_', emphasis.render({ text = 'x' }))
     end)
 
-    it('round-trips ***both*** through read', function()
+    it('honors a `*` override from setup', function()
+      require('gutenberg.config').merge({ emphasis = { delimiter = '*' } })
+      local ok, err = pcall(function()
+        assert.equal('*x*', emphasis.render({ text = 'x' }))
+      end)
+      require('gutenberg.config').merge()
+      if not ok then
+        error(err)
+      end
+    end)
+
+    it('re-emits inner strong in the configured delimiter', function()
       with_buffer({ 'a ***both*** b' }, { 1, 6 }, function(ctx)
-        assert.equal('***both***', emphasis.render(emphasis.read(ctx)))
+        assert.equal('_**both**_', emphasis.render(emphasis.read(ctx)))
       end)
     end)
   end)
@@ -91,7 +102,7 @@ describe('gutenberg.api.emphasis', function()
         emphasis.set_text(value, 'new')
         emphasis.replace(node, { value }, ctx)
         assert.same(
-          { 'a *new* b' },
+          { 'a _new_ b' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)

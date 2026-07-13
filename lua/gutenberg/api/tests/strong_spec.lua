@@ -54,8 +54,19 @@ describe('gutenberg.api.strong', function()
   end)
 
   describe('render', function()
-    it('always emits `**` delimiters', function()
+    it('emits the configured delimiter, default `**`', function()
       assert.equal('**x**', strong.render({ text = 'x' }))
+    end)
+
+    it('honors a `__` override from setup', function()
+      require('gutenberg.config').merge({ strong = { delimiter = '__' } })
+      local ok, err = pcall(function()
+        assert.equal('__x__', strong.render({ text = 'x' }))
+      end)
+      require('gutenberg.config').merge()
+      if not ok then
+        error(err)
+      end
     end)
 
     it('round-trips `__bold__` to `**bold**`', function()

@@ -38,12 +38,26 @@
 ---@class gutenberg.link.Config: gutenberg.link.Config.Partial
 ---@field default_kind gutenberg.link.Kind
 
+---@class gutenberg.emphasis.Config.Partial
+---@field delimiter? string Delimiter wrapping emphasized text. Defaults to prettier's `_`; `*` is the common alternative.
+
+---@class gutenberg.emphasis.Config: gutenberg.emphasis.Config.Partial
+---@field delimiter string
+
+---@class gutenberg.strong.Config.Partial
+---@field delimiter? string Delimiter wrapping strong (bold) text. Defaults to prettier's `**`; `__` is the alternative.
+
+---@class gutenberg.strong.Config: gutenberg.strong.Config.Partial
+---@field delimiter string
+
 ---@class gutenberg.Config.Partial
 ---@field list? gutenberg.list.Config.Partial
 ---@field heading? gutenberg.heading.Config.Partial
 ---@field table? gutenberg.table.Config.Partial
 ---@field code_block? gutenberg.code_block.Config.Partial
 ---@field link? gutenberg.link.Config.Partial
+---@field emphasis? gutenberg.emphasis.Config.Partial
+---@field strong? gutenberg.strong.Config.Partial
 
 ---@class gutenberg.Config: gutenberg.Config.Partial
 ---@field list gutenberg.list.Config
@@ -51,6 +65,8 @@
 ---@field table gutenberg.table.Config
 ---@field code_block gutenberg.code_block.Config
 ---@field link gutenberg.link.Config
+---@field emphasis gutenberg.emphasis.Config
+---@field strong gutenberg.strong.Config
 
 ---@type gutenberg.Config
 local defaults = {
@@ -70,6 +86,12 @@ local defaults = {
   },
   link = {
     default_kind = 'inline',
+  },
+  emphasis = {
+    delimiter = '_',
+  },
+  strong = {
+    delimiter = '**',
   },
 }
 

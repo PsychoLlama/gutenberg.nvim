@@ -120,6 +120,7 @@ gutenberg.code_span.remove()	gutenberg.txt	/*gutenberg.code_span.remove()*
 gutenberg.code_span.wrap()	gutenberg.txt	/*gutenberg.code_span.wrap()*
 gutenberg.config	gutenberg.txt	/*gutenberg.config*
 gutenberg.context	gutenberg.txt	/*gutenberg.context*
+gutenberg.emphasis.Config	gutenberg.txt	/*gutenberg.emphasis.Config*
 gutenberg.emphasis.remove()	gutenberg.txt	/*gutenberg.emphasis.remove()*
 gutenberg.emphasis.wrap()	gutenberg.txt	/*gutenberg.emphasis.wrap()*
 gutenberg.heading	gutenberg.txt	/*gutenberg.heading*
@@ -154,6 +155,7 @@ gutenberg.list.update_list()	gutenberg.txt	/*gutenberg.list.update_list()*
 gutenberg.setup	gutenberg.txt	/*gutenberg.setup*
 gutenberg.strikethrough.remove()	gutenberg.txt	/*gutenberg.strikethrough.remove()*
 gutenberg.strikethrough.wrap()	gutenberg.txt	/*gutenberg.strikethrough.wrap()*
+gutenberg.strong.Config	gutenberg.txt	/*gutenberg.strong.Config*
 gutenberg.strong.remove()	gutenberg.txt	/*gutenberg.strong.remove()*
 gutenberg.strong.wrap()	gutenberg.txt	/*gutenberg.strong.wrap()*
 gutenberg.table	gutenberg.txt	/*gutenberg.table*

@@ -4,14 +4,14 @@ local with_buffer = require('gutenberg.tests.utils').with_buffer
 
 describe('gutenberg.emphasis', function()
   describe('wrap', function()
-    it('wraps the charwise selection in `*`', function()
+    it('wraps the charwise selection in the configured delimiter', function()
       with_buffer({ 'make this bold' }, { 1, 0 }, function(ctx)
         emphasis.wrap({
           bufnr = ctx.bufnr,
           range = { mode = 'char', start = { 1, 5 }, stop = { 1, 8 } },
         })
         assert.same(
-          { 'make *this* bold' },
+          { 'make _this_ bold' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)
@@ -24,7 +24,7 @@ describe('gutenberg.emphasis', function()
           range = { mode = 'char', start = { 1, 4 }, stop = { 1, 7 } },
         })
         assert.same(
-          { 'see *café* here' },
+          { 'see _café_ here' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)
