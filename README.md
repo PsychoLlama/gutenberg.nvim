@@ -14,7 +14,7 @@ The API has two tiers:
 - **`require('gutenberg.api')`** holds the low-level primitives —
   probes, readers, renderers, accessors, navigation. Nothing here
   prompts, notifies, or moves the cursor.
-- **`require('gutenberg')`** holds cursor-level sugar designed to be
+- **`require('gutenberg')`** holds cursor-level verbs designed to be
   bound: count- and visual-range-aware edits, motions, and pickers,
   with error messages ready for `vim.notify`.
 
@@ -28,7 +28,7 @@ if list.is_list_item() then
   list.replace(node, { item })
 end
 
--- …or the sugar built on top of them.
+-- …or the verbs built on top of them.
 require('gutenberg').list.toggle_checkbox()
 ```
 

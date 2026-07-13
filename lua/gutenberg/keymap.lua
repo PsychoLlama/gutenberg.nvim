@@ -1,4 +1,4 @@
---- Adapters that turn gutenberg's sugar verbs into well-behaved
+--- Adapters that turn gutenberg's verbs into well-behaved
 --- keymaps: dot-repeatable, count-aware normal-mode edits, operator
 --- maps, and visual-mode maps that read the live selection. gutenberg
 --- still ships no keymaps — user mappings consume these (see
@@ -39,7 +39,7 @@ function M._repeat_opfunc()
   end)
 end
 
---- Wrap a sugar verb as a dot-repeatable, count-aware normal-mode
+--- Wrap a verb as a dot-repeatable, count-aware normal-mode
 --- edit. Returns a function for an `expr = true` mapping:
 --- >lua
 ---   vim.keymap.set('n', '<leader>m>', keymap.repeatable(function(ctx)
@@ -88,7 +88,7 @@ function M._operator_opfunc(motion)
   end)
 end
 
---- Wrap a sugar verb as an operator: the mapping waits for a motion or
+--- Wrap a verb as an operator: the mapping waits for a motion or
 --- textobject and hands `fn` the covered range. Returns a function for
 --- an `expr = true` mapping:
 --- >lua
@@ -109,7 +109,7 @@ function M.operator(fn)
   end
 end
 
---- Wrap a sugar verb as a visual-mode edit. The live selection is read
+--- Wrap a verb as a visual-mode edit. The live selection is read
 --- from `getpos('v')` / `getpos('.')` — never the `'<` / `'>` marks,
 --- which still describe the PREVIOUS selection while visual mode is
 --- active — with swapped anchors normalized. Visual mode is left

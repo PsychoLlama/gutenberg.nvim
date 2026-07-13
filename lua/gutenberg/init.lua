@@ -36,7 +36,7 @@ local function try_require(name)
 end
 
 -- Lazy submodule access. `require('gutenberg').list` resolves to
--- `require('gutenberg.constructs.list')` — the cursor-level sugar —
+-- `require('gutenberg.constructs.list')` — the cursor-level verbs —
 -- falling back to `require('gutenberg.<key>')` for infrastructure
 -- modules (including `gutenberg.api`, the low-level primitives). The
 -- result is cached so startup pays no import cost for unused

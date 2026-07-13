@@ -23,7 +23,7 @@ primitives to build your own:
     list.replace(node, { item })
   end
 <
-Or, using the sugar tier that composes that loop for you:
+Or, using the verb tier that composes that loop for you:
 >lua
   require('gutenberg').list.toggle_checkbox()
 <
@@ -65,7 +65,7 @@ Everything gutenberg exposes is one of three kinds of function:
   DO move it.
 - Codemods — produce text or change the buffer: `create` / `render`
   build text from values, `set_*` mutate values in memory, `replace`
-  writes back in a single update, and the sugar verbs (`update`,
+  writes back in a single update, and the verbs (`update`,
   `toggle_checkbox`, `promote`, `format`, …) compose the whole loop.
 
 The API is split in two tiers along those seams:
@@ -73,8 +73,8 @@ The API is split in two tiers along those seams:
 - `require('gutenberg.api')` holds the low-level per-construct
   primitives — probes, read / create / render / replace, accessors,
   navigation. Nothing here prompts, notifies, or moves the cursor.
-- `require('gutenberg')` holds the cursor-level sugar — count- and
-  range-aware verbs with UI-ready error messages, designed to be bound
+- `require('gutenberg')` holds the verbs — count- and range-aware,
+  with UI-ready error messages, designed to be bound
   through |gutenberg.keymap|.
 
 Every api module shares one surface built from those kinds:
@@ -108,7 +108,7 @@ the current buffer and window cursor:
 Pass `{ bufnr = ... }` to drive edits in background buffers, or a full
 `{ bufnr, cursor }` for fully programmatic rewrites.
 
-`count` scales the sugar verbs the way a keymap count would: promote N
+`count` scales the verbs the way a keymap count would: promote N
 levels, toggle N items, jump N headings. It is never read from
 |v:count1| — the keymap edge passes it explicitly (|gutenberg.keymap|
 does that for you).
@@ -145,7 +145,7 @@ buffer number.
 ==============================================================================
 RECIPES                                                    *gutenberg-recipes*
 
-The sugar verbs are designed to be bound. |gutenberg.keymap| supplies
+The verbs are designed to be bound. |gutenberg.keymap| supplies
 the adapters — dot-repeat, counts, operators, live visual ranges — and
 the notify edge, so a binding is one line per mode. Two tiny glue
 helpers cover almost everything (the same helpers the recommended
@@ -435,7 +435,7 @@ already edit them.
 ==============================================================================
 KEYMAP HELPERS                                                *gutenberg.keymap*
 
-Adapters that turn sugar verbs into well-behaved keymaps: dot-repeat,
+Adapters that turn the verbs into well-behaved keymaps: dot-repeat,
 counts, operators, and visual mode. gutenberg still ships no keymaps —
 your mappings consume these. This module is a sanctioned UI edge: every
 adapter runs its callback under |pcall()| and surfaces failures through
@@ -447,7 +447,7 @@ notify({fn})                                        *gutenberg.keymap.notify()*
     adapter.
 
 repeatable({fn})                                *gutenberg.keymap.repeatable()*
-    Wrap a sugar verb as a dot-repeatable, count-aware normal-mode
+    Wrap a verb as a dot-repeatable, count-aware normal-mode
     edit. Returns a function for an `expr = true` mapping: >lua
       vim.keymap.set('n', '<leader>m>', keymap.repeatable(function(ctx)
         require('gutenberg').heading.demote(ctx)
@@ -459,14 +459,14 @@ repeatable({fn})                                *gutenberg.keymap.repeatable()*
     on empty lines.
 
 operator({fn})                                    *gutenberg.keymap.operator()*
-    Wrap a sugar verb as an operator: the mapping waits for a motion
+    Wrap a verb as an operator: the mapping waits for a motion
     or textobject and hands {fn} the covered range as
     `{ range = ... }` (an inclusive char or line range). Returns a
     function for an `expr = true` mapping. Dot-repeat comes free with
     |g@|. Blockwise-forced motions notify and do nothing.
 
 visual({fn})                                        *gutenberg.keymap.visual()*
-    Wrap a sugar verb as a visual-mode edit. Reads the LIVE selection
+    Wrap a verb as a visual-mode edit. Reads the LIVE selection
     (|getpos()| on `'v'` and `'.'` — the `'<` / `'>` marks still
     describe the previous selection while visual mode is active),
     normalizes backwards selections, leaves visual mode, then calls
@@ -558,9 +558,9 @@ the node decodes as: >query
 API                                                              *gutenberg-api*
 
 Two tiers per construct. The root modules (`require('gutenberg').list`)
-carry the cursor-level sugar: count- and range-aware verbs with
-UI-ready errors, meant for keymaps. `require('gutenberg.api').list`
-carries the primitives the sugar is built from. Value types
+carry the verbs: count- and range-aware, with UI-ready errors,
+meant for keymaps. `require('gutenberg.api').list` carries the
+primitives the verbs are built from. Value types
 (`gutenberg.list.Item`, `gutenberg.table.Table`, …) are shared by both
 tiers.
 
@@ -580,7 +580,7 @@ A `gutenberg.list.Item` is a plain table: >lua
       text = 'foo',    -- content after marker (and checkbox, if present)
     }
 <
-Sugar — `require('gutenberg').list`:
+Verbs — `require('gutenberg').list`:
 
 update({fn}, {ctx})                                   *gutenberg.list.update()*
     Read the item at the cursor, apply {fn}, and write the result back
@@ -760,7 +760,7 @@ A `gutenberg.heading.Heading` is a plain table: >lua
       text = 'title',   -- everything after the # markers
     }
 <
-Sugar — `require('gutenberg').heading`:
+Verbs — `require('gutenberg').heading`:
 
 update({fn}, {ctx})                                *gutenberg.heading.update()*
     Read the heading at the cursor, apply {fn}, and write the result
@@ -852,7 +852,7 @@ Per-column alignment is one of `'none'`, `'left'`, `'center'`,
 `'right'`. Cell addresses are `(row, col)` pairs: row 0 is the header,
 rows 1..N the body, columns 1-indexed.
 
-Sugar — `require('gutenberg').table`:
+Verbs — `require('gutenberg').table`:
 
 update({fn}, {ctx})                                 *gutenberg.table.update()*
     Read the table at the cursor, apply {fn}, and write the result
@@ -1021,7 +1021,7 @@ A `gutenberg.code_block.CodeBlock` is a plain table: >lua
 The `info_string` is stored as-is so callers can carry attributes (for
 example `{lua title="x"}`) through a round trip.
 
-Sugar — `require('gutenberg').code_block`:
+Verbs — `require('gutenberg').code_block`:
 
 update({fn}, {ctx})                            *gutenberg.code_block.update()*
     Read the block at the cursor, apply {fn}, and write the result
@@ -1097,7 +1097,7 @@ links and are skipped.
 Special characters in `text`, `url`, `title`, and `label` are NOT
 escaped by `render`. Pre-escape any user input as needed.
 
-Sugar — `require('gutenberg').link`:
+Verbs — `require('gutenberg').link`:
 
 update({fn}, {ctx})                                  *gutenberg.link.update()*
     Read the link at the cursor, apply {fn}, and write the result back

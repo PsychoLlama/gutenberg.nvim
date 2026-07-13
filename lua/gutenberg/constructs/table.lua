@@ -1,4 +1,4 @@
---- Cursor-level sugar over `gutenberg.api.table`. Every verb here
+--- Cursor-level verbs over `gutenberg.api.table`. Every verb here
 --- composes the low-level primitives (read → mutate → replace) and
 --- errors with UI-ready messages, so keymap edges can `pcall` + notify
 --- directly. Drop down to `require('gutenberg.api').table` for the
