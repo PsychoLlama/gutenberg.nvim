@@ -20,9 +20,24 @@
         lib.genAttrs (import systems) (system: nixpkgs.legacyPackages.${system})
       );
 
-      # Every `tests/` directory anywhere under `dir`. `fileFilter` only
-      # sees a file's own name, not its ancestors, so we walk the tree to
-      # catch test dirs at any depth rather than hard-coding their paths.
+      # The directory trees that make up the packaged plugin.
+      packagedSources = [
+        ./lua
+        ./doc
+        ./queries
+      ];
+
+      # Every `tests/` directory anywhere under `dir`, as a list of paths.
+      #
+      # `lib.fileset` deliberately has no ancestor- or glob-based
+      # exclusion — `fileFilter`'s predicate only sees a file's own name,
+      # never the directories above it — so "drop any tests/ directory at
+      # any depth" can't be expressed with the fileset combinators alone.
+      # We enumerate the test dirs ourselves and subtract them below. This
+      # does not weaken the fileset: the walk only reads the source tree
+      # that's already being packaged, and its result is fed straight back
+      # into `difference`, so the final source is still a plain, precise
+      # fileset (which is itself implemented on top of `readDir`).
       testDirsUnder =
         dir:
         lib.concatLists (
@@ -34,7 +49,7 @@
               [ (dir + "/${name}") ]
             else
               testDirsUnder (dir + "/${name}")
-          ) (builtins.readDir dir)
+          ) (lib.filesystem.readDir dir)
         );
     in
 
@@ -49,11 +64,9 @@
             # packaged plugin ships only runtime source and docs.
             src = lib.fileset.toSource {
               root = ./.;
-              fileset = lib.fileset.difference (lib.fileset.unions [
-                ./lua
-                ./doc
-                ./queries
-              ]) (lib.fileset.unions (testDirsUnder ./lua ++ testDirsUnder ./doc));
+              fileset = lib.fileset.difference (lib.fileset.unions packagedSources) (
+                lib.fileset.unions (lib.concatMap testDirsUnder packagedSources)
+              );
             };
           };
         }
