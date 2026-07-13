@@ -1,12 +1,16 @@
 ---@class gutenberg
 ---@field api gutenberg.api
 ---@field code_block gutenberg.code_block
+---@field code_span gutenberg.code_span
 ---@field config gutenberg.config
+---@field emphasis gutenberg.emphasis
 ---@field health gutenberg.health
 ---@field heading gutenberg.heading
 ---@field keymap gutenberg.keymap
 ---@field link gutenberg.link
 ---@field list gutenberg.list
+---@field strikethrough gutenberg.strikethrough
+---@field strong gutenberg.strong
 ---@field table gutenberg.table
 ---@field tour gutenberg.tour
 local M = {}
