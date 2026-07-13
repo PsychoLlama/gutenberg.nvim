@@ -43,6 +43,41 @@ describe('gutenberg', function()
       assert.is_nil(gutenberg.does_not_exist)
     end)
 
+    it('propagates submodule load errors instead of masking them', function()
+      package.preload['gutenberg.constructs.broken'] = function()
+        error('gutenberg: broken submodule', 0)
+      end
+      local gutenberg = require('gutenberg') ---@type table
+
+      local ok, err = pcall(function()
+        return gutenberg.broken
+      end)
+      package.preload['gutenberg.constructs.broken'] = nil
+      package.loaded['gutenberg.constructs.broken'] = nil
+
+      assert.is_false(ok)
+      assert.matches('broken submodule', tostring(err))
+    end)
+
+    it(
+      'propagates api submodule load errors instead of masking them',
+      function()
+        package.preload['gutenberg.api.broken'] = function()
+          error('gutenberg: broken api submodule', 0)
+        end
+        local api = require('gutenberg.api') ---@type table
+
+        local ok, err = pcall(function()
+          return api.broken
+        end)
+        package.preload['gutenberg.api.broken'] = nil
+        package.loaded['gutenberg.api.broken'] = nil
+
+        assert.is_false(ok)
+        assert.matches('broken api submodule', tostring(err))
+      end
+    )
+
     it('resolves the low-level api namespace', function()
       local gutenberg = require('gutenberg')
       assert.equal(require('gutenberg.api'), gutenberg.api)

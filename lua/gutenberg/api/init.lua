@@ -12,9 +12,18 @@ local M = {}
 -- result so importing the api surface pays no cost for unused modules.
 setmetatable(M, {
   __index = function(self, key)
-    local ok, mod = pcall(require, 'gutenberg.api.' .. key)
+    local name = 'gutenberg.api.' .. key
+    local ok, mod = pcall(require, name)
     if not ok then
-      return nil
+      -- Only a genuinely missing module resolves to nil; a module that
+      -- exists but fails to load propagates its error.
+      if
+        type(mod) == 'string'
+        and mod:find("module '" .. name .. "' not found", 1, true) ~= nil
+      then
+        return nil
+      end
+      error(mod, 0)
     end
     rawset(self, key, mod)
     return mod
