@@ -694,4 +694,81 @@ describe('gutenberg.list', function()
       end)
     end)
   end)
+
+  describe('next_checkbox / prev_checkbox', function()
+    local DOC = {
+      '- [ ] a', -- row 1, unchecked
+      '- [x] b', -- row 2, checked
+      '- [ ] c', -- row 3, unchecked
+      '- [x] d', -- row 4, checked
+      '- [ ] e', -- row 5, unchecked
+    }
+
+    it('next_checkbox jumps to the next unchecked item', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        local item = list.next_checkbox(ctx, { checked = false })
+        assert.equal('c', item.text)
+        assert.same({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next_checkbox jumps to the next checked item', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        local item = list.next_checkbox(ctx, { checked = true })
+        assert.equal('b', item.text)
+        assert.same({ 2, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next_checkbox steps count matches', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        list.next_checkbox(
+          { bufnr = ctx.bufnr, cursor = ctx.cursor, count = 2 },
+          { checked = false }
+        )
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next_checkbox clamps an overshooting count', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        display(ctx)
+        list.next_checkbox(
+          { bufnr = ctx.bufnr, cursor = ctx.cursor, count = 9 },
+          { checked = false }
+        )
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('next_checkbox stays put and returns nil with no match', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        display(ctx)
+        local item = list.next_checkbox(ctx, { checked = false })
+        assert.is_nil(item)
+        assert.same({ 5, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('prev_checkbox jumps to the previous unchecked item', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        display(ctx)
+        local item = list.prev_checkbox(ctx, { checked = false })
+        assert.equal('c', item.text)
+        assert.same({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('prev_checkbox jumps to the previous checked item', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        display(ctx)
+        local item = list.prev_checkbox(ctx, { checked = true })
+        assert.equal('d', item.text)
+        assert.same({ 4, 0 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+  end)
 end)

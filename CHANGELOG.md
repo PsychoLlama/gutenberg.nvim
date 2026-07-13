@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Checkbox motions. `gutenberg.list.next_checkbox` / `prev_checkbox` move the
+  cursor to the next/previous list item, filtered by checkbox state via
+  `{ checked = true | false }`, backed by new `gutenberg.api.list.find_next` /
+  `find_prev` primitives. The recommended keymaps bind `]c` / `[c` to the
+  next/previous unchecked item and `]C` / `[C` to the next/previous checked one.
+
 ## [0.1.0] - 2026-07-12
 
 Initial release.

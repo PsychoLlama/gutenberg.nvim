@@ -264,6 +264,64 @@ function M.items(ctx)
   return results
 end
 
+--- Whether an item's checkbox matches the filter. With no filter (opts
+--- nil or `checked` nil) every list item qualifies; a boolean `checked`
+--- keeps only items in that state — items without a checkbox never match
+--- a boolean filter (`is_checked` returns nil for them).
+---@param item gutenberg.list.Item
+---@param opts? { checked?: boolean }
+---@return boolean
+local function checkbox_matches(item, opts)
+  if opts == nil or opts.checked == nil then
+    return true
+  end
+  return M.is_checked(item) == opts.checked
+end
+
+--- Nearest list item starting strictly after the cursor row, optionally
+--- filtered by checkbox state. With `opts.checked` set, only items in
+--- that checked state qualify (items without a checkbox never match).
+--- Returns nil when nothing qualifies.
+---@param ctx? gutenberg.Context.Partial
+---@param opts? { checked?: boolean }
+---@return gutenberg.list.Item?, TSNode?
+function M.find_next(ctx, opts)
+  ctx = context.resolve(ctx)
+  local row = ctx.cursor[1] - 1
+  for _, entry in ipairs(M.items(ctx)) do
+    local sr = entry.node:range()
+    if sr > row and checkbox_matches(entry.item, opts) then
+      return entry.item, entry.node
+    end
+  end
+  return nil, nil
+end
+
+--- Nearest list item starting strictly before the cursor row, optionally
+--- filtered by checkbox state like `find_next`. Returns nil when nothing
+--- qualifies.
+---@param ctx? gutenberg.Context.Partial
+---@param opts? { checked?: boolean }
+---@return gutenberg.list.Item?, TSNode?
+function M.find_prev(ctx, opts)
+  ctx = context.resolve(ctx)
+  local row = ctx.cursor[1] - 1
+  ---@type gutenberg.list.Item?
+  local match_item
+  ---@type TSNode?
+  local match_node
+  for _, entry in ipairs(M.items(ctx)) do
+    local sr = entry.node:range()
+    if sr < row and checkbox_matches(entry.item, opts) then
+      match_item = entry.item
+      match_node = entry.node
+    elseif sr >= row then
+      break
+    end
+  end
+  return match_item, match_node
+end
+
 --- Render `items` and splice them into the buffer above `row` in a
 --- single insertion. An empty `items` list is a no-op.
 ---@param bufnr integer

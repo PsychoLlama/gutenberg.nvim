@@ -60,6 +60,21 @@ function M.apply(bufnr)
   motion(']e', gutenberg.table.next_cell, 'next table cell')
   motion('[e', gutenberg.table.prev_cell, 'previous table cell')
 
+  -- Checkbox motions: lowercase walks unchecked items, uppercase walks
+  -- checked ones. `]` forward, `[` backward.
+  motion(']c', function(ctx)
+    gutenberg.list.next_checkbox(ctx, { checked = false })
+  end, 'next unchecked item')
+  motion('[c', function(ctx)
+    gutenberg.list.prev_checkbox(ctx, { checked = false })
+  end, 'previous unchecked item')
+  motion(']C', function(ctx)
+    gutenberg.list.next_checkbox(ctx, { checked = true })
+  end, 'next checked item')
+  motion('[C', function(ctx)
+    gutenberg.list.prev_checkbox(ctx, { checked = true })
+  end, 'previous checked item')
+
   -- Inner-cell textobject. Off-table it errors before selecting,
   -- which cancels a pending operator and notifies.
   vim.keymap.set({ 'x', 'o' }, 'i|', function()

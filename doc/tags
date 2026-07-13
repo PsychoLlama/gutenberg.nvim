@@ -64,6 +64,8 @@ gutenberg.api.list-accessors	gutenberg.txt	/*gutenberg.api.list-accessors*
 gutenberg.api.list.append()	gutenberg.txt	/*gutenberg.api.list.append()*
 gutenberg.api.list.create()	gutenberg.txt	/*gutenberg.api.list.create()*
 gutenberg.api.list.dedent()	gutenberg.txt	/*gutenberg.api.list.dedent()*
+gutenberg.api.list.find_next()	gutenberg.txt	/*gutenberg.api.list.find_next()*
+gutenberg.api.list.find_prev()	gutenberg.txt	/*gutenberg.api.list.find_prev()*
 gutenberg.api.list.indent()	gutenberg.txt	/*gutenberg.api.list.indent()*
 gutenberg.api.list.indent_unit()	gutenberg.txt	/*gutenberg.api.list.indent_unit()*
 gutenberg.api.list.insert()	gutenberg.txt	/*gutenberg.api.list.insert()*
@@ -149,6 +151,8 @@ gutenberg.list.Config	gutenberg.txt	/*gutenberg.list.Config*
 gutenberg.list.dedent()	gutenberg.txt	/*gutenberg.list.dedent()*
 gutenberg.list.indent()	gutenberg.txt	/*gutenberg.list.indent()*
 gutenberg.list.insert_item()	gutenberg.txt	/*gutenberg.list.insert_item()*
+gutenberg.list.next_checkbox()	gutenberg.txt	/*gutenberg.list.next_checkbox()*
+gutenberg.list.prev_checkbox()	gutenberg.txt	/*gutenberg.list.prev_checkbox()*
 gutenberg.list.remove_checkbox()	gutenberg.txt	/*gutenberg.list.remove_checkbox()*
 gutenberg.list.toggle_checkbox()	gutenberg.txt	/*gutenberg.list.toggle_checkbox()*
 gutenberg.list.toggle_ordered()	gutenberg.txt	/*gutenberg.list.toggle_ordered()*

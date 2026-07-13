@@ -547,6 +547,78 @@ describe('gutenberg.api.list', function()
     end)
   end)
 
+  describe('find_next / find_prev', function()
+    local DOC = {
+      '- [ ] a', -- row 1, unchecked
+      '- [x] b', -- row 2, checked
+      '- plain', -- row 3, no checkbox
+      '- [ ] c', -- row 4, unchecked
+      '- [x] d', -- row 5, checked
+    }
+
+    it('find_next returns the nearest item after the cursor row', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        local item = list.find_next(ctx)
+        assert.equal('b', item.text)
+      end)
+    end)
+
+    it('find_next filters to unchecked items', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        local item = list.find_next(ctx, { checked = false })
+        assert.equal('c', item.text)
+      end)
+    end)
+
+    it('find_next filters to checked items', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        local item = list.find_next(ctx, { checked = true })
+        assert.equal('b', item.text)
+      end)
+    end)
+
+    it('find_next skips items without a checkbox under a filter', function()
+      with_buffer(DOC, { 2, 0 }, function(ctx)
+        -- Row 3 has no checkbox, so an unchecked filter jumps past it.
+        local item = list.find_next(ctx, { checked = false })
+        assert.equal('c', item.text)
+      end)
+    end)
+
+    it('find_next returns nil when nothing qualifies', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        assert.is_nil(list.find_next(ctx, { checked = true }))
+      end)
+    end)
+
+    it('find_prev returns the nearest item before the cursor row', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        local item = list.find_prev(ctx)
+        assert.equal('c', item.text)
+      end)
+    end)
+
+    it('find_prev filters to checked items', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        local item = list.find_prev(ctx, { checked = true })
+        assert.equal('b', item.text)
+      end)
+    end)
+
+    it('find_prev filters to unchecked items', function()
+      with_buffer(DOC, { 5, 0 }, function(ctx)
+        local item = list.find_prev(ctx, { checked = false })
+        assert.equal('c', item.text)
+      end)
+    end)
+
+    it('find_prev returns nil when nothing qualifies', function()
+      with_buffer(DOC, { 1, 0 }, function(ctx)
+        assert.is_nil(list.find_prev(ctx, { checked = true }))
+      end)
+    end)
+  end)
+
   describe('prepend', function()
     it('inserts rendered items above the node', function()
       with_buffer({ '- one', '- two' }, { 2, 0 }, function(ctx)

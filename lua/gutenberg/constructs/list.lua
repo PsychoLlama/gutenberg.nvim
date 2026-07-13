@@ -602,4 +602,59 @@ function M.insert_item(opts, ctx)
   return inserted
 end
 
+--- Step `ctx.count` list items via `find` (an `api.find_next`-shaped
+--- function) and move the current window's cursor to the last one
+--- reached. Overshooting clamps to the furthest match; no match at all
+--- leaves the cursor alone and returns nil.
+---@param find fun(ctx: gutenberg.Context.Partial, opts?: { checked?: boolean }): gutenberg.list.Item?, TSNode?
+---@param ctx gutenberg.Context
+---@param opts? { checked?: boolean }
+---@return gutenberg.list.Item?, TSNode?
+local function jump(find, ctx, opts)
+  ---@type gutenberg.list.Item?, TSNode?
+  local item, node
+  local probe = { bufnr = ctx.bufnr, cursor = ctx.cursor }
+  for _ = 1, ctx.count do
+    local it, n = find(probe, opts)
+    if n == nil then
+      break
+    end
+    item, node = it, n
+    local row, col = n:range()
+    probe = { bufnr = ctx.bufnr, cursor = { row + 1, col } }
+  end
+
+  if node == nil then
+    return nil, nil
+  end
+  local row, col = node:range()
+  vim.api.nvim_win_set_cursor(0, { row + 1, col })
+  return item, node
+end
+
+--- Move the cursor to the `ctx.count`-th list item after it, clamping
+--- at the last one. Unlike everything in `gutenberg.api`, this MOVES
+--- the current window's cursor — it exists to be a motion. Returns the
+--- item landed on, or nil (cursor untouched) when none follows. {opts}
+--- filters by checkbox state like `gutenberg.api.list.find_next` — pass
+--- `{ checked = false }` to walk unchecked items, `{ checked = true }`
+--- for checked ones.
+---@param ctx? gutenberg.Context.Partial
+---@param opts? { checked?: boolean }
+---@return gutenberg.list.Item?, TSNode?
+function M.next_checkbox(ctx, opts)
+  return jump(api.find_next, context.resolve(ctx), opts)
+end
+
+--- Move the cursor to the `ctx.count`-th list item before it, clamping
+--- at the first one. Moves the current window's cursor; returns the
+--- item landed on, or nil (cursor untouched) when none precedes. {opts}
+--- filters by checkbox state like `gutenberg.api.list.find_prev`.
+---@param ctx? gutenberg.Context.Partial
+---@param opts? { checked?: boolean }
+---@return gutenberg.list.Item?, TSNode?
+function M.prev_checkbox(ctx, opts)
+  return jump(api.find_prev, context.resolve(ctx), opts)
+end
+
 return M

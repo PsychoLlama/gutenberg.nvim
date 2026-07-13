@@ -248,6 +248,8 @@ every edit gets counts, visual mode, and `.`-repeat:
     ]E  [E        next / previous table
     ]e  [e        next / previous table cell
     i|            inner table cell textobject (x, o)
+    ]c  [c        next / previous unchecked item
+    ]C  [C        next / previous checked item
 
   Edits (n with count + `.`, x over the selection) ~
     <leader>m<    promote heading / dedent list item / move column left
@@ -529,6 +531,18 @@ dedent({ctx})                                         *gutenberg.list.dedent()*
     strip. For a plain one-unit text shift with no renumbering or
     guard, use the |gutenberg.api.list.indent()| primitive.
 
+next_checkbox({ctx}, {opts})                 *gutenberg.list.next_checkbox()*
+prev_checkbox({ctx}, {opts})                 *gutenberg.list.prev_checkbox()*
+    Move the cursor to the `count`-th list item after / before it —
+    these are motions and DO move the current window's cursor, unlike
+    everything in `gutenberg.api`. Overshooting counts clamp to the
+    furthest match; no match at all leaves the cursor alone and returns
+    nil. {opts} takes the `checked` filter of
+    |gutenberg.api.list.find_next()|: `{ checked = false }` walks
+    unchecked items, `{ checked = true }` walks checked ones, and no
+    filter walks every list item. The recommended keymaps bind these to
+    `]c` / `[c` (unchecked) and `]C` / `[C` (checked).
+
 Primitives — `require('gutenberg.api').list`:            *gutenberg.api.list*
 
 is_list_item({ctx})                         *gutenberg.api.list.is_list_item()*
@@ -555,6 +569,15 @@ replace({node}, {items}, {ctx})                  *gutenberg.api.list.replace()*
 items({ctx})                                       *gutenberg.api.list.items()*
     Every list item in the buffer — any list, any depth — in document
     order, as `{ item, node }` entries.
+
+find_next({ctx}, {opts})                       *gutenberg.api.list.find_next()*
+find_prev({ctx}, {opts})                       *gutenberg.api.list.find_prev()*
+    The nearest list item strictly after / before the cursor row,
+    returned as `(gutenberg.list.Item, TSNode)`, or nil when none
+    qualifies. {opts} is an optional table with a `checked` filter: set
+    it to keep only items in that checked state — items without a
+    checkbox never match a boolean filter. Neither moves the cursor; the
+    root-level |gutenberg.list.next_checkbox()| motions build on these.
 
 prepend({node}, {items}, {ctx})                  *gutenberg.api.list.prepend()*
 append({node}, {items}, {ctx})                    *gutenberg.api.list.append()*
