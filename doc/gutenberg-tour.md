@@ -127,11 +127,39 @@ Wrap this sentence's first word, then unlink
 
 ---
 
-## Code Blocks
+## Emphasis & Strong
 
-`<leader>mc` inserts an empty fenced code block below the cursor — or
-in place of a blank line. In visual mode it fences the selected lines
-instead. Select these two lines with `V` and try it:
+`<leader>me` wraps text in emphasis and `<leader>mb` in strong (bold);
+`<leader>ms` strikes it through. In normal mode each hangs as an
+operator — `<leader>meiw` emphasizes the inner word; in visual mode it
+wraps the selection. The capital of each — `<leader>mE`, `<leader>mB`,
+`<leader>mS` — removes that span under the cursor and repeats with `.`:
+
+Emphasize "quick", bold "brown" with `<leader>mbiw`, then strike
+"lazy" — and remove one with its capital key on top of it:
+
+The quick brown fox jumps over the lazy dog.
+
+gutenberg wraps emphasis in `_` and strong in `**` — prettier's
+defaults — while removal accepts the `*`, `_`, and `__` spellings
+either way. Point `emphasis.delimiter` / `strong.delimiter` at the
+other spelling to change what it writes; see `:help gutenberg.config`.
+
+---
+
+## Code
+
+`<leader>mc` reads the shape of what you give it. On a charwise motion
+or selection it wraps an inline code span — `<leader>mciw` fences the
+inner word in backticks, and the run grows past any backticks already
+inside so it can't close early. `<leader>mC` removes the code span
+under the cursor and repeats with `.`:
+
+Call the render function directly, not through a wrapper.
+
+On a linewise selection the same `<leader>mc` fences a whole code block
+instead — or, on a blank line, inserts an empty one. Select these two
+lines with `V` and try it:
 
 echo "hello, $USER"
 uname -a
