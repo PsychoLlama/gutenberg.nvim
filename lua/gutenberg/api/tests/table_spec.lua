@@ -675,10 +675,28 @@ describe('gutenberg.api.table', function()
       end)
     end)
 
-    it('returns nil for a blank cell', function()
-      with_buffer({ '| a |  |', '| - | - |' }, { 1, 0 }, function(ctx)
+    it('covers the padding of a blank cell', function()
+      with_buffer({ '| a |    |', '| - | - |' }, { 1, 0 }, function(ctx)
         local _, node = tbl.read(ctx)
-        assert.is_nil(tbl.cell_range(node, 0, 2, ctx))
+        -- `| a |    |`: the blank cell's insertion point is one past its
+        -- `| ` prefix, and the selectable padding runs to the last space.
+        assert.same({
+          mode = 'char',
+          start = { 1, 6 },
+          stop = { 1, 8 },
+        }, tbl.cell_range(node, 0, 2, ctx))
+      end)
+    end)
+
+    it('collapses to the insertion point on a zero-width cell', function()
+      with_buffer({ '| a || c |', '| - | - | - |' }, { 1, 0 }, function(ctx)
+        local _, node = tbl.read(ctx)
+        -- The middle cell has no interior; land on the closing pipe.
+        assert.same({
+          mode = 'char',
+          start = { 1, 5 },
+          stop = { 1, 5 },
+        }, tbl.cell_range(node, 0, 2, ctx))
       end)
     end)
 
@@ -854,6 +872,147 @@ describe('gutenberg.api.table', function()
       local t = tbl.create({ headers = { 'a' } })
       assert.error_matches(function()
         tbl.move_column(t, 1, 2)
+      end, 'column index out of range')
+    end)
+  end)
+
+  describe('empty and zero-width cells', function()
+    it('reads a whitespace-only cell as empty text', function()
+      with_buffer(
+        { '| a | b |', '| - | - |', '|   | y |' },
+        { 1, 0 },
+        function(ctx)
+          local t = tbl.read(ctx)
+          assert.same({ { '', 'y' } }, t.rows)
+        end
+      )
+    end)
+
+    it('reads a fully empty body row', function()
+      with_buffer(
+        { '| a | b | c |', '| - | - | - |', '|   |   |   |' },
+        { 1, 0 },
+        function(ctx)
+          local t = tbl.read(ctx)
+          assert.same({ { '', '', '' } }, t.rows)
+        end
+      )
+    end)
+
+    it(
+      'reads a zero-width cell as an empty column, not a dropped one',
+      function()
+        with_buffer({ '| a || c |', '| - | - | - |' }, { 1, 0 }, function(ctx)
+          local t = tbl.read(ctx)
+          assert.same({ 'a', '', 'c' }, t.headers)
+          assert.same({ 'none', 'none', 'none' }, t.alignments)
+        end)
+      end
+    )
+
+    it('reads a spaced zero-width cell', function()
+      with_buffer({ '| x || z |', '| - | - | - |' }, { 1, 0 }, function(ctx)
+        local t = tbl.read(ctx)
+        assert.same({ 'x', '', 'z' }, t.headers)
+      end)
+    end)
+
+    it('reads a zero-width cell in a body row', function()
+      with_buffer(
+        { '| a | b | c |', '| - | - | - |', '| p || r |' },
+        { 1, 0 },
+        function(ctx)
+          local t = tbl.read(ctx)
+          assert.same({ { 'p', '', 'r' } }, t.rows)
+        end
+      )
+    end)
+
+    it('recovers the first column of a leading `||` header', function()
+      with_buffer({ '|| b | c |', '| - | - | - |' }, { 1, 0 }, function(ctx)
+        local t = tbl.read(ctx)
+        assert.same({ '', 'b', 'c' }, t.headers)
+        assert.same({ 'none', 'none', 'none' }, t.alignments)
+      end)
+    end)
+
+    it('recovers the first column of a leading `||` body row', function()
+      with_buffer(
+        { '| a | b | c |', '| - | - | - |', '|| q | r |' },
+        { 1, 0 },
+        function(ctx)
+          local t = tbl.read(ctx)
+          assert.same({ { '', 'q', 'r' } }, t.rows)
+        end
+      )
+    end)
+
+    it('keeps escaped pipes inside their cell', function()
+      with_buffer({ '| a \\| b | c |', '| - | - |' }, { 1, 0 }, function(ctx)
+        local t = tbl.read(ctx)
+        assert.same({ 'a \\| b', 'c' }, t.headers)
+      end)
+    end)
+
+    it('round-trips a zero-width cell without migrating data', function()
+      with_buffer({ '| a || c |', '| - | - | - |' }, { 1, 0 }, function(ctx)
+        local t, node = tbl.read(ctx)
+        tbl.replace(node, { t }, ctx)
+        assert.same({
+          '| a   |     | c   |',
+          '| --- | --- | --- |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('round-trips a leading `||` header', function()
+      with_buffer({ '|| b | c |', '| - | - | - |' }, { 1, 0 }, function(ctx)
+        local t, node = tbl.read(ctx)
+        tbl.replace(node, { t }, ctx)
+        assert.same({
+          '|     | b   | c   |',
+          '| --- | --- | --- |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
+
+    it('column_at resolves the empty column of a zero-width cell', function()
+      with_buffer({ '| a || c |', '| - | - | - |' }, { 1, 5 }, function(ctx)
+        assert.equal(2, tbl.column_at(ctx))
+      end)
+    end)
+
+    it('column_at is unshifted after a leading `||`', function()
+      with_buffer({ '|| b | c |', '| - | - | - |' }, { 1, 7 }, function(ctx)
+        -- Cursor inside `c`; without the leading-pipe recovery this
+        -- would read as column 2.
+        assert.equal(3, tbl.column_at(ctx))
+      end)
+    end)
+  end)
+
+  describe('set_cell into blank and ragged rows', function()
+    it('writes into a freshly inserted empty row', function()
+      local t = tbl.create({ headers = { 'a', 'b' } })
+      tbl.insert_row(t, 1, {})
+      tbl.set_cell(t, 1, 1, 'x')
+      tbl.set_cell(t, 1, 2, 'y')
+      assert.same({ { 'x', 'y' } }, t.rows)
+    end)
+
+    it('pads a short header up to the column count', function()
+      local t = tbl.create({
+        headers = { 'a' },
+        alignments = { 'none', 'none', 'none' },
+      })
+      tbl.set_cell(t, 0, 3, 'c')
+      assert.same({ 'a', '', 'c' }, t.headers)
+    end)
+
+    it('validates the column against the table column count', function()
+      local t = tbl.create({ headers = { 'a', 'b' }, rows = { { '1' } } })
+      assert.error_matches(function()
+        tbl.set_cell(t, 1, 3, 'z')
       end, 'column index out of range')
     end)
   end)

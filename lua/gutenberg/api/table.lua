@@ -42,16 +42,86 @@ local function read_alignment(node)
   return 'none'
 end
 
----@param node TSNode
----@param bufnr integer
----@return string[]
-local function read_row_cells(node, bufnr)
-  local cells = {}
-  for child in node:iter_children() do
-    if child:type() == 'pipe_table_cell' then
-      local text = vim.treesitter.get_node_text(child, bufnr)
-      table.insert(cells, vim.trim(text))
+--- The 0-based columns of the unescaped `|` delimiters on `line`, at or
+--- after `left` (the table's left edge, so a container prefix like a
+--- block quote's `> ` is skipped). A `|` preceded by an odd run of
+--- backslashes is escaped (`\|`) and stays inside its cell.
+---@param line string
+---@param left integer
+---@return integer[]
+local function pipe_columns(line, left)
+  local cols = {}
+  local i = left + 1
+  while i <= #line do
+    if line:sub(i, i) == '|' then
+      local backslashes = 0
+      local j = i - 1
+      while j >= 1 and line:sub(j, j) == '\\' do
+        backslashes = backslashes + 1
+        j = j - 1
+      end
+      if backslashes % 2 == 0 then
+        table.insert(cols, i - 1)
+      end
     end
+    i = i + 1
+  end
+  return cols
+end
+
+--- The logical cells of a table row, derived from the pipe delimiters on
+--- its `line` rather than from `pipe_table_cell` nodes — the only
+--- reliable source, since tree-sitter-markdown drops the node for a
+--- zero-width cell (`|a||c|`) and pushes stray pipes into ERROR nodes.
+--- Each cell is `{ open, close }`: the 0-based columns of the pipes on
+--- either side (a trailing cell without a closing pipe closes at end of
+--- line). The N-1 spans between N pipes are the columns; the leading and
+--- trailing margins are dropped.
+---@param line string
+---@param left integer The table's left edge column (see `pipe_columns`).
+---@return { open: integer, close: integer }[]
+local function cell_bounds(line, left)
+  local pipes = pipe_columns(line, left)
+  local bounds = {}
+  for k = 1, #pipes - 1 do
+    table.insert(bounds, { open = pipes[k], close = pipes[k + 1] })
+  end
+  if #pipes >= 1 then
+    local last = pipes[#pipes]
+    if line:sub(last + 2):match('%S') ~= nil then
+      table.insert(bounds, { open = last, close = #line })
+    end
+  end
+  return bounds
+end
+
+--- The trimmed text of the cell bounded by `bound` on `line`. The cell's
+--- interior runs from just past the opening pipe to the closing pipe.
+---@param line string
+---@param bound { open: integer, close: integer }
+---@return string
+local function cell_text(line, bound)
+  return vim.trim(line:sub(bound.open + 2, bound.close))
+end
+
+---@param bufnr integer
+---@param row integer 0-based buffer row.
+---@return string
+local function line_at(bufnr, row)
+  return vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ''
+end
+
+--- Decode a header or body row into its trimmed cell texts. `left` is the
+--- table's left-edge column, shared by every row.
+---@param bufnr integer
+---@param row integer 0-based buffer row of the table row.
+---@param left integer
+---@return string[]
+local function read_row_cells(bufnr, row, left)
+  local line = line_at(bufnr, row)
+  local cells = {}
+  for _, bound in ipairs(cell_bounds(line, left)) do
+    table.insert(cells, cell_text(line, bound))
   end
   return cells
 end
@@ -64,11 +134,12 @@ local function decode(node, bufnr)
   local headers = {}
   local alignments = {}
   local rows = {}
+  local _, left = node:range()
 
   for child in node:iter_children() do
     local t = child:type()
     if t == 'pipe_table_header' then
-      headers = read_row_cells(child, bufnr)
+      headers = read_row_cells(bufnr, (child:range()), left)
     elseif t == 'pipe_table_delimiter_row' then
       for cell in child:iter_children() do
         if cell:type() == 'pipe_table_delimiter_cell' then
@@ -76,7 +147,7 @@ local function decode(node, bufnr)
         end
       end
     elseif t == 'pipe_table_row' then
-      table.insert(rows, read_row_cells(child, bufnr))
+      table.insert(rows, read_row_cells(bufnr, (child:range()), left))
     end
   end
 
@@ -121,6 +192,24 @@ function M.create(fields)
     headers = headers,
     rows = fields.rows or {},
   }
+end
+
+--- The logical column count: the widest of the header, any body row, and
+--- the alignment list, so ragged and zero-width-cell tables still address
+--- every column.
+---@param tbl gutenberg.table.Table
+---@return integer
+local function column_count(tbl)
+  local count = #tbl.headers
+  if #tbl.alignments > count then
+    count = #tbl.alignments
+  end
+  for _, row in ipairs(tbl.rows) do
+    if #row > count then
+      count = #row
+    end
+  end
+  return count
 end
 
 ---@param alignment gutenberg.table.Alignment
@@ -179,23 +268,15 @@ end
 ---@param tbl gutenberg.table.Table
 ---@return string[]
 function M.render(tbl)
-  local column_count = #tbl.headers
-  for _, row in ipairs(tbl.rows) do
-    if #row > column_count then
-      column_count = #row
-    end
-  end
-  if #tbl.alignments > column_count then
-    column_count = #tbl.alignments
-  end
+  local columns = column_count(tbl)
 
   local alignments = {}
-  for i = 1, column_count do
+  for i = 1, columns do
     alignments[i] = tbl.alignments[i] or 'none'
   end
 
   local widths = {}
-  for i = 1, column_count do
+  for i = 1, columns do
     widths[i] = DELIMITER_MIN_WIDTH
     local header = tbl.headers[i] or ''
     local hw = vim.fn.strdisplaywidth(header)
@@ -273,15 +354,21 @@ function M.get_cell(tbl, row, col)
 end
 
 --- Set a cell's text. Row 0 is the header; rows 1..N are body rows.
---- Errors on out-of-range indices.
+--- `col` is validated against the table's logical column count (not the
+--- target row's current length), and a row shorter than `col` is padded
+--- with empty cells first — so writing into a freshly `insert_row`-ed
+--- blank row, or a ragged row, works. Errors on out-of-range indices.
 ---@param tbl gutenberg.table.Table
 ---@param row integer
 ---@param col integer
 ---@param text string
 function M.set_cell(tbl, row, col, text)
+  if col < 1 or col > column_count(tbl) or col ~= math.floor(col) then
+    error('gutenberg: column index out of range: ' .. col, 0)
+  end
   if row == 0 then
-    if col < 1 or col > #tbl.headers then
-      error('gutenberg: column index out of range: ' .. col, 0)
+    while #tbl.headers < col do
+      table.insert(tbl.headers, '')
     end
     tbl.headers[col] = text
     return
@@ -290,8 +377,8 @@ function M.set_cell(tbl, row, col, text)
   if body == nil then
     error('gutenberg: row index out of range: ' .. row, 0)
   end
-  if col < 1 or col > #body then
-    error('gutenberg: column index out of range: ' .. col, 0)
+  while #body < col do
+    table.insert(body, '')
   end
   body[col] = text
 end
@@ -325,16 +412,12 @@ local ROW_TYPES = {
   pipe_table_row = true,
 }
 
----@type table<string, true>
-local CELL_TYPES = {
-  pipe_table_cell = true,
-  pipe_table_delimiter_cell = true,
-}
-
 --- The 1-based column index under the cursor, or nil when the cursor
 --- isn't on a pipe table. The cursor resolves to the last column
 --- starting at or before it, so a cursor on a `|` counts as the column
 --- that pipe closes; before the first cell it counts as column 1.
+--- Columns are the spans between pipe delimiters (see `cell_bounds`), so
+--- zero-width and blank cells count like any other.
 ---@param ctx? gutenberg.Context.Partial
 ---@return integer?
 function M.column_at(ctx)
@@ -346,25 +429,24 @@ function M.column_at(ctx)
 
   local row = ctx.cursor[1] - 1
   local col = ctx.cursor[2]
+  local _, left = node:range()
   for child in node:iter_children() do
     local sr = child:range()
     if ROW_TYPES[child:type()] and sr == row then
+      local bounds = cell_bounds(line_at(ctx.bufnr, row), left)
       ---@type integer?
       local index
-      local count = 0
-      for cell in child:iter_children() do
-        if CELL_TYPES[cell:type()] then
-          count = count + 1
-          local _, sc = cell:range()
-          if sc <= col then
-            index = count
-          end
+      for i, bound in ipairs(bounds) do
+        -- A cell's interior starts one column past its opening pipe; a
+        -- cursor at or before that pipe hasn't reached the cell yet.
+        if bound.open < col then
+          index = i
         end
       end
       if index ~= nil then
         return index
       end
-      return count > 0 and 1 or nil
+      return #bounds > 0 and 1 or nil
     end
   end
   return nil
@@ -440,9 +522,15 @@ function M.find_prev(ctx)
   return decode(match, ctx.bufnr), match
 end
 
---- The buffer range of a cell's trimmed text: charwise, multibyte-safe
---- endpoints. Row 0 is the header; rows 1..N are body rows. Returns
---- nil when the cell doesn't exist or holds only whitespace.
+--- The editable buffer range of a cell: charwise, multibyte-safe
+--- endpoints. Row 0 is the header; rows 1..N are body rows.
+---
+--- For a cell with text, the trimmed text's range (inclusive endpoints).
+--- For a blank cell it never fails: the cell's interior whitespace when
+--- there is padding to select, otherwise a collapsed range at the
+--- insertion point just inside the opening pipe — so `next_cell`, the
+--- `i|` textobject, and cursor landing all have somewhere to go on empty
+--- cells and empty rows. Returns nil only when the cell doesn't exist.
 ---@param node TSNode A `pipe_table` node (see `read`).
 ---@param row integer
 ---@param col integer
@@ -450,59 +538,62 @@ end
 ---@return gutenberg.Range?
 function M.cell_range(node, row, col, ctx)
   ctx = context.resolve(ctx)
+  local _, left = node:range()
 
-  ---@type TSNode?
-  local row_node
+  ---@type integer?
+  local row_line
   local body = 0
   for child in node:iter_children() do
     local t = child:type()
     if row == 0 and t == 'pipe_table_header' then
-      row_node = child
+      row_line = (child:range())
       break
     elseif t == 'pipe_table_row' then
       body = body + 1
       if body == row then
-        row_node = child
+        row_line = (child:range())
         break
       end
     end
   end
-  if row_node == nil then
+  if row_line == nil then
     return nil
   end
 
-  ---@type TSNode?
-  local cell_node
-  local count = 0
-  for cell in row_node:iter_children() do
-    if cell:type() == 'pipe_table_cell' then
-      count = count + 1
-      if count == col then
-        cell_node = cell
-        break
-      end
-    end
-  end
-  if cell_node == nil then
+  local line = line_at(ctx.bufnr, row_line)
+  local bound = cell_bounds(line, left)[col]
+  if bound == nil then
     return nil
   end
 
-  local text = vim.treesitter.get_node_text(cell_node, ctx.bufnr)
+  local r = row_line + 1
+  local text = line:sub(bound.open + 2, bound.close)
   local trimmed = vim.trim(text)
-  if trimmed == '' then
-    return nil
+  if trimmed ~= '' then
+    local leading = #(text:match('^%s*'))
+    local interior = bound.open + 1
+    -- The stop column points at the first byte of the last character so
+    -- consumers can treat it as an inclusive cursor position.
+    local last_byte = leading + #trimmed
+    local stop_col = interior
+      + last_byte
+      - 1
+      + vim.str_utf_start(text, last_byte)
+    return {
+      mode = 'char',
+      start = { r, interior + leading },
+      stop = { r, stop_col },
+    }
   end
-  local leading = #(text:match('^%s*'))
 
-  local sr, sc = cell_node:range()
-  -- The stop column points at the first byte of the last character so
-  -- consumers can treat it as an inclusive cursor position.
-  local last_byte = leading + #trimmed
-  local stop_col = sc + last_byte - 1 + vim.str_utf_start(text, last_byte)
+  -- Blank cell: the insertion point sits one column past `| ` so typed
+  -- text picks up a leading pad, clamped inside the closing pipe.
+  local insert_col = math.min(bound.open + 2, bound.close)
+  local last_pad = bound.close - 1
   return {
     mode = 'char',
-    start = { sr + 1, sc + leading },
-    stop = { sr + 1, stop_col },
+    start = { r, insert_col },
+    stop = { r, math.max(insert_col, last_pad) },
   }
 end
 

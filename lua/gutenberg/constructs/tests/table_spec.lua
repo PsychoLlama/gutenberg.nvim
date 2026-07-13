@@ -99,6 +99,18 @@ describe('gutenberg.table', function()
         )
       end)
     end)
+
+    it('targets the correct column past a zero-width cell', function()
+      -- Cursor in the empty middle column of `| a || c |`. Counting
+      -- pipe_table_cell nodes would misread this as column 1 or 3.
+      with_buffer({ '| a || c |', '| - | - | - |' }, { 1, 5 }, function(ctx)
+        tbl.cycle_alignment(ctx)
+        assert.same({
+          '| a   |     | c   |',
+          '| --- | :-- | --- |',
+        }, vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false))
+      end)
+    end)
   end)
 
   --- Show the scratch buffer in the current window so cursor-moving
@@ -212,12 +224,40 @@ describe('gutenberg.table', function()
       end)
     end)
 
-    it('skips blank cells', function()
+    it('lands on a blank cell instead of skipping it', function()
       local lines = { '| a |   |', '| - | - |', '| 1 | 2 |' }
       with_buffer(lines, { 1, 2 }, function(ctx)
         display(ctx)
         tbl.next_cell(ctx)
+        -- The blank header cell's insertion point, one past `| `.
+        assert.same({ 1, 6 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('traverses a fully empty row', function()
+      -- A blank sole body row parses as a row (unlike a blank row wedged
+      -- between content rows, which tree-sitter-markdown drops). Both of
+      -- its empty cells are now reachable.
+      local lines = { '| a | b |', '| - | - |', '|   |   |' }
+      with_buffer(lines, { 1, 2 }, function(ctx)
+        display(ctx)
+        tbl.next_cell({ bufnr = ctx.bufnr, cursor = ctx.cursor, count = 2 })
         assert.same({ 3, 2 }, vim.api.nvim_win_get_cursor(0))
+      end)
+      with_buffer(lines, { 1, 2 }, function(ctx)
+        display(ctx)
+        tbl.next_cell({ bufnr = ctx.bufnr, cursor = ctx.cursor, count = 3 })
+        assert.same({ 3, 6 }, vim.api.nvim_win_get_cursor(0))
+      end)
+    end)
+
+    it('lands on an empty column across rows', function()
+      -- The middle column is blank in every row but still reachable.
+      local lines = { '| a |  | c |', '| - | - | - |', '| 1 |  | 3 |' }
+      with_buffer(lines, { 1, 2 }, function(ctx)
+        display(ctx)
+        tbl.next_cell(ctx)
+        assert.same({ 1, 6 }, vim.api.nvim_win_get_cursor(0))
       end)
     end)
 
@@ -318,13 +358,32 @@ describe('gutenberg.table', function()
       end)
     end)
 
-    it('errors on a blank cell', function()
+    it('selects the padding of a blank cell', function()
       local lines = { '| a |   |', '| - | - |' }
       with_buffer(lines, { 1, 6 }, function(ctx)
         display(ctx)
-        assert.error_matches(function()
-          tbl.select_cell(ctx)
-        end, 'no cell text under the cursor')
+        tbl.select_cell(ctx)
+        assert.equal('v', vim.fn.mode())
+        local anchor = vim.fn.getpos('v')
+        local head = vim.fn.getpos('.')
+        assert.same({ 1, 7 }, { anchor[2], anchor[3] })
+        assert.same({ 1, 8 }, { head[2], head[3] })
+        vim.api.nvim_feedkeys(
+          vim.api.nvim_replace_termcodes('<Esc>', true, false, true),
+          'nx',
+          false
+        )
+      end)
+    end)
+
+    it('places the cursor without selecting on a zero-width cell', function()
+      -- The middle cell of `| a || c |` has no interior at all.
+      local lines = { '| a || c |', '| - | - | - |' }
+      with_buffer(lines, { 1, 5 }, function(ctx)
+        display(ctx)
+        tbl.select_cell(ctx)
+        assert.is_true(vim.fn.mode() ~= 'v')
+        assert.same({ 1, 5 }, vim.api.nvim_win_get_cursor(0))
       end)
     end)
 

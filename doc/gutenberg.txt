@@ -927,12 +927,13 @@ actions({ctx})                                     *gutenberg.table.actions()*
 
 next_cell({ctx})                                 *gutenberg.table.next_cell()*
 prev_cell({ctx})                                 *gutenberg.table.prev_cell()*
-    Move the cursor to the start of the `count`-th cell after / before
-    the cursor's, walking cells in reading order — header first, then
-    each body row — and skipping blank cells. These are motions and DO
-    move the current window's cursor. At the table edge the cursor
-    stays and nil returns. Errors when the cursor isn't on a pipe
-    table.
+    Move the cursor to the `count`-th cell after / before the cursor's,
+    walking cells in reading order — header first, then each body row.
+    Every cell is a stop, blank and zero-width cells included: the
+    cursor lands on the cell's text, or its insertion point when empty.
+    These are motions and DO move the current window's cursor. At the
+    table edge the cursor stays and nil returns. Errors when the cursor
+    isn't on a pipe table.
 
 next_table({ctx})                               *gutenberg.table.next_table()*
 prev_table({ctx})                               *gutenberg.table.prev_table()*
@@ -941,11 +942,14 @@ prev_table({ctx})                               *gutenberg.table.prev_table()*
     and returns nil.
 
 select_cell({ctx})                             *gutenberg.table.select_cell()*
-    Visually select the trimmed text of the cell under the cursor —
-    the engine behind an `i|` inner-cell textobject in visual and
-    operator-pending maps. Leaves any live visual mode first, then
-    selects charwise. Errors when the cursor isn't on a pipe table or
-    the cell is blank.
+    Visually select the cell under the cursor — the engine behind an
+    `i|` inner-cell textobject in visual and operator-pending maps.
+    Leaves any live visual mode first, then selects charwise. On a cell
+    with text, selects the trimmed text; on a blank cell with padding,
+    selects the padding so `ci|` types into it; on a zero-width cell
+    (`|a||c|`) there is nothing to select, so the cursor lands at the
+    insertion point and no selection is made. Errors only when the
+    cursor isn't on a pipe table.
 
 Primitives — `require('gutenberg.api').table`:          *gutenberg.api.table*
 
@@ -978,7 +982,11 @@ replace({node}, {tables}, {ctx})               *gutenberg.api.table.replace()*
 
 get_cell({table}, {row}, {col})               *gutenberg.api.table.get_cell()*
 set_cell({table}, {row}, {col}, {text})       *gutenberg.api.table.set_cell()*
-    Read or write a cell. Errors on out-of-range indices.
+    Read or write a cell. `set_cell` validates {col} against the table's
+    logical column count (the widest of the header, any row, and the
+    alignments) and pads a shorter target row with empty cells first, so
+    writing into a freshly `insert_row`-ed blank row or a ragged row
+    works. Errors on out-of-range indices.
 
 get_alignment({table}, {col})            *gutenberg.api.table.get_alignment()*
 set_alignment({table}, {col}, {alignment}) *gutenberg.api.table.set_alignment()*
@@ -1011,6 +1019,8 @@ column_at({ctx})                             *gutenberg.api.table.column_at()*
     isn't on a pipe table. The cursor resolves to the last column
     starting at or before it: a cursor on a `|` counts as the column
     that pipe closes, and before the first cell counts as column 1.
+    Columns are the spans between pipe delimiters, so blank and
+    zero-width cells (`|a||c|`) count like any other.
 
 row_at({ctx})                                   *gutenberg.api.table.row_at()*
     The row index under the cursor: 0 for the header and delimiter
@@ -1023,11 +1033,13 @@ find_prev({ctx})                             *gutenberg.api.table.find_prev()*
     qualifies. Neither moves the cursor.
 
 cell_range({node}, {row}, {col}, {ctx})     *gutenberg.api.table.cell_range()*
-    The buffer range of a cell's trimmed text: a charwise
-    |gutenberg.Range| with multibyte-safe endpoints. {node} is the
-    `pipe_table` node from `read`. Returns nil when the cell doesn't
-    exist or holds only whitespace. The base for cell motions and the
-    inner-cell textobject.
+    The editable buffer range of a cell: a charwise |gutenberg.Range|
+    with multibyte-safe endpoints. {node} is the `pipe_table` node from
+    `read`. For a cell with text, the trimmed text's range; for a blank
+    cell, its whitespace padding, or a collapsed range at the insertion
+    point when the cell is zero-width — so it never fails on an empty
+    cell. Returns nil only when the cell doesn't exist. The base for
+    cell motions and the inner-cell textobject.
 
 ------------------------------------------------------------------------------
 CODE BLOCK                                                *gutenberg.code_block*

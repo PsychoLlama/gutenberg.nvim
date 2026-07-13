@@ -42,9 +42,11 @@ local ALIGNMENT_CYCLE = { 'none', 'left', 'center', 'right' }
 local ALIGNMENT_INDEX = { none = 1, left = 2, center = 3, right = 4 }
 
 --- Move the cursor to the (row, col) cell of the rewritten table at
---- `sr`, when the edited buffer is the one on screen. Blank cells
---- (fresh inserts) have no text range; land just inside their opening
---- pipe.
+--- `sr`, when the edited buffer is the one on screen. `cell_range` yields
+--- an insertion point even for a blank cell that is present in the tree.
+--- An all-blank row, though, tree-sitter-markdown may drop from the table
+--- node entirely — so when `cell_range` can't resolve the cell, fall back
+--- to scanning the target line's pipes directly.
 ---@param ctx gutenberg.Context
 ---@param sr integer Start row of the table node before the rewrite.
 ---@param target_row integer 0 = header.
@@ -193,10 +195,11 @@ local function cell_positions(tbl)
 end
 
 --- Step `ctx.count` cells in `direction` from the cursor's cell and
---- move the current window's cursor to the start of the cell text.
---- Blank cells (nothing to land on) are skipped; overshooting clamps
---- to the furthest reachable cell. Returns the landed-on cell's range,
---- or nil (cursor untouched) when no cell qualifies.
+--- move the current window's cursor to the cell's insertion point. Every
+--- cell is reachable — blank cells and fully empty rows included, since
+--- `cell_range` yields a landing point for them. Overshooting clamps to
+--- the furthest cell. Returns the landed-on cell's range, or nil (cursor
+--- untouched) when no cell qualifies.
 ---@param direction 1 | -1
 ---@param ctx gutenberg.Context
 ---@return gutenberg.Range?
@@ -218,22 +221,18 @@ local function step_cell(direction, ctx)
     index = direction == 1 and 0 or #positions + 1
   end
 
-  ---@type gutenberg.Range?
-  local target
-  local remaining = ctx.count
-  local i = index
-  while remaining > 0 do
-    i = i + direction
-    if i < 1 or i > #positions then
-      break
-    end
-    local range = api.cell_range(node, positions[i][1], positions[i][2], ctx)
-    if range ~= nil then
-      target = range
-      remaining = remaining - 1
-    end
+  local target_index = index + direction * ctx.count
+  target_index = math.max(1, math.min(#positions, target_index))
+  if target_index == index then
+    return nil
   end
 
+  local target = api.cell_range(
+    node,
+    positions[target_index][1],
+    positions[target_index][2],
+    ctx
+  )
   if target == nil then
     return nil
   end
@@ -310,11 +309,15 @@ function M.prev_table(ctx)
   return jump(api.find_prev, context.resolve(ctx))
 end
 
---- Visually select the trimmed text of the cell under the cursor —
---- the engine behind an `i|` inner-cell textobject in both visual and
---- operator-pending maps. Leaves any current visual mode first, then
---- selects charwise. Errors if the cursor isn't on a pipe table, or
---- when the cell is blank (nothing to select).
+--- Visually select the cell under the cursor — the engine behind an
+--- `i|` inner-cell textobject in both visual and operator-pending maps.
+--- Leaves any current visual mode first, then selects charwise.
+---
+--- On a cell with text, selects the trimmed text. On a blank cell with
+--- whitespace padding, selects the padding, so `ci|` types into the
+--- cell. On a truly zero-width cell (`|a||c|`) there is nothing to
+--- select: the cursor lands at the insertion point and no selection is
+--- made. Errors only if the cursor isn't on a pipe table.
 ---@param ctx? gutenberg.Context.Partial
 ---@return gutenberg.Range selected
 function M.select_cell(ctx)
@@ -328,7 +331,7 @@ function M.select_cell(ctx)
 
   local range = api.cell_range(node, row, col, ctx)
   if range == nil then
-    error('gutenberg: no cell text under the cursor', 0)
+    error('gutenberg: no cell under the cursor', 0)
   end
 
   local mode = vim.fn.mode()
@@ -336,8 +339,12 @@ function M.select_cell(ctx)
     vim.cmd('normal! \27')
   end
   vim.api.nvim_win_set_cursor(0, { range.start[1], range.start[2] })
-  vim.cmd('normal! v')
-  vim.api.nvim_win_set_cursor(0, { range.stop[1], range.stop[2] })
+  -- A collapsed range is a zero-width cell: land the cursor, select
+  -- nothing (selecting the closing pipe would be wrong).
+  if range.start[1] ~= range.stop[1] or range.start[2] ~= range.stop[2] then
+    vim.cmd('normal! v')
+    vim.api.nvim_win_set_cursor(0, { range.stop[1], range.stop[2] })
+  end
   return range
 end
 
