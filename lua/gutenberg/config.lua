@@ -86,7 +86,7 @@ local defaults = {
   },
   list = {
     marker = '-',
-    default_checked = true,
+    default_checked = false,
   },
   heading = {
     level = 1,

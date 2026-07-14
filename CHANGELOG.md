@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- New checkboxes now default to unchecked. Set `list.default_checked = true` in `setup` to restore the old behavior.
+
 ## [0.2.0] - 2026-07-14
 
 ### Changed

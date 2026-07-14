@@ -44,7 +44,7 @@ keymaps (|gutenberg-recommended-config|):
 >lua
   require('gutenberg').setup{
     default_keymaps = { enable = true },
-    list = { default_checked = false },
+    list = { default_checked = true },
   }
 <
 The root module lazily resolves every submodule, so
@@ -1196,7 +1196,7 @@ CONFIG                                                      *gutenberg.config*
     list = {
       marker = '-',            -- bullet for new/unordered items
       indent = nil,            -- indent unit; nil = derive from buffer
-      default_checked = true,  -- state of a newly-inserted checkbox
+      default_checked = false, -- state of a newly-inserted checkbox
     },
     heading = {
       level = 1,               -- default level for created headings

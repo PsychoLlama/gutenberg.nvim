@@ -432,17 +432,15 @@ describe('gutenberg.api.list', function()
   end)
 
   describe('config.default_checked', function()
-    it('defaults to true', function()
+    it('defaults to false', function()
       require('gutenberg.config').merge()
-      assert.is_true(require('gutenberg.config').get().list.default_checked)
+      assert.is_false(require('gutenberg.config').get().list.default_checked)
     end)
 
     it('honors an override from setup', function()
-      require('gutenberg.config').merge({ list = { default_checked = false } })
+      require('gutenberg.config').merge({ list = { default_checked = true } })
       local ok, err = pcall(function()
-        assert.is_false(
-          require('gutenberg.config').get().list.default_checked
-        )
+        assert.is_true(require('gutenberg.config').get().list.default_checked)
       end)
       require('gutenberg.config').merge()
       if not ok then

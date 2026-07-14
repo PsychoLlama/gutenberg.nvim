@@ -81,20 +81,20 @@ describe('gutenberg.list', function()
       with_buffer({ '- foo' }, { 1, 0 }, function(ctx)
         list.toggle_checkbox(ctx)
         assert.same(
-          { '- [x] foo' },
+          { '- [ ] foo' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)
     end)
 
-    it('honors default_checked = false for new checkboxes', function()
+    it('honors default_checked = true for new checkboxes', function()
       require('gutenberg.config').merge({
-        list = { default_checked = false },
+        list = { default_checked = true },
       })
       local ok, err = pcall(with_buffer, { '- foo' }, { 1, 0 }, function(ctx)
         list.toggle_checkbox(ctx)
         assert.same(
-          { '- [ ] foo' },
+          { '- [x] foo' },
           vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
         )
       end)
