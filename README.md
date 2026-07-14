@@ -6,7 +6,7 @@
 ## Overview
 
 `gutenberg.nvim` is a plugin for rich Markdown editing, built on Treesitter:
-promote headings, reshape tables, toggle checkboxes, wrap links and inline
+reshape tables, toggle checkboxes, promote headings, wrap links and inline
 spans, and more. Every action you can trigger from a keybinding is also exposed
 as a composable, fully-typed API, so you can rebind anything or script edits
 directly.
@@ -36,17 +36,16 @@ require('gutenberg').list.toggle_checkbox()
 
 ## Features
 
+- **Tables**
+  - Insert / delete / move columns, cell motions, an inner-cell textobject
+  - Format to canonical widths, cycle column alignment
 - **Lists**
-  - Insert items, indent / dedent to nest, renumber ordered runs automatically
-  - Toggle checkboxes (bulk over a visual selection), switch ordered ↔ unordered
+  - Insert items, indent / dedent to nest, renumber ordered runs automatically, cycle ordered / unordered
+  - Toggle checkboxes (bulk over a visual selection), navigation to checked / unchecked items
+- **Code blocks**
+  - Wrap a motion or selection in a code fence
 - **Headings**
   - Promote / demote, count- and range-aware
-  - Jump to the next, previous, or parent heading
-- **Tables** (GFM)
-  - Format to canonical widths, cycle column alignment
-  - Insert / delete / move rows and columns, cell motions, an inner-cell textobject
-- **Code blocks**
-  - Wrap lines in a fence, insert an empty block, edit the info string and content
 - **Links**
   - Wrap a motion or selection in a link, unwrap a link but keep its text
   - Inline, reference (full / collapsed / shortcut), and autolink kinds
@@ -62,8 +61,7 @@ features you don't touch.
 
 ## Configuration
 
-`setup` is optional; gutenberg works out of the box. Opt into the recommended
-keymaps and you're editing:
+Gutenberg ships with **opt-in keymaps**. They are not enabled by default.
 
 ```lua
 require('gutenberg').setup({
@@ -71,20 +69,21 @@ require('gutenberg').setup({
 })
 ```
 
-Prefer to learn by doing? Take the interactive tour, a scratch buffer with every
-keybinding pre-wired and nothing to configure:
+See `:help gutenberg-recommended-config` for the full keymap list and
+`:help gutenberg.config` for every option.
+
+## Interactive Tour
+
+Explore gutenberg's features in a `:vimtutor`-style scratch buffer.
 
 ```vim
 :lua require('gutenberg').tour()
 ```
 
-See `:help gutenberg-recommended-config` for the full keymap list and
-`:help gutenberg.config` for every option.
-
 ## Installation
 
-Requires Neovim ≥ 0.10 and the `markdown` / `markdown_inline` Treesitter
-parsers, both bundled with Neovim since 0.10.
+Requires the `markdown` / `markdown_inline` Treesitter parsers, both bundled
+with Neovim since 0.10.
 
 <details>
 <summary><b>lazy.nvim</b></summary>
@@ -150,3 +149,12 @@ Then install the plugin and call `setup` from your Neovim config:
 
 Full reference in `:help gutenberg`, or read
 [the docs online](https://github.com/PsychoLlama/gutenberg.nvim/blob/main/doc/gutenberg.txt).
+
+## Related Tools
+
+- [markdown.nvim](https://github.com/tadmccorkle/markdown.nvim): gutenberg is
+  heavily inspired by this plugin. I created Gutenberg to build on that
+  experience, adding features like table editing and a richer Lua API.
+- [prettier](https://prettier.io/) / [prettierd](https://github.com/fsouza/prettierd):
+  grew out of the JS community as a general-purpose formatter. It has excellent
+  markdown support. I recommend using it with [conform.nvim](https://github.com/stevearc/conform.nvim/).
