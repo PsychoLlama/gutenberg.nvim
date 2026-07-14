@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The recommended link keymap (`<leader>ml`) now offers file-path completion
+  since Markdown links are often relative paths.
+
 ### Added
 
 - Checkbox motions. `gutenberg.list.next_checkbox` / `prev_checkbox` move the

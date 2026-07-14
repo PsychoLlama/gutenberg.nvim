@@ -197,7 +197,7 @@ function M.apply(bufnr)
   -- Links prompt for the URL; the other spans wrap directly.
   ---@param ctx gutenberg.Context.Partial
   local function wrap_link(ctx)
-    vim.ui.input({ prompt = 'URL: ' }, function(input)
+    vim.ui.input({ prompt = 'Link: ', completion = 'file' }, function(input)
       if input == nil then
         return
       end
