@@ -18,4 +18,8 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@v14
         with:
           use-flakehub: false
+      # The default shell builds the dev shell on first use. Give it a step of
+      # its own so the download/build noise doesn't bury the `just check` logs.
+      - name: Hydrate the Nix shell
+        run: "true"
       - run: just check
