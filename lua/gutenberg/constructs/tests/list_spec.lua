@@ -487,6 +487,19 @@ describe('gutenberg.list', function()
       end)
     end)
 
+    it('leaves the following sibling in place', function()
+      -- A nested list_item's range ends at the *indent* of its next
+      -- sibling, so a naive clamp would drag that sibling along.
+      local lines = { '- first', '  - second', '  - third' }
+      with_buffer(lines, { 2, 4 }, function(ctx)
+        list.dedent(ctx)
+        assert.same(
+          { '- first', '- second', '  - third' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
     it('strips a tab per unit when noexpandtab', function()
       local lines = { '- a', '\t- b' }
       with_buffer(lines, { 2, 0 }, function(ctx)
@@ -658,6 +671,23 @@ describe('gutenberg.list', function()
         )
       end)
     end)
+
+    it(
+      'lands directly below a nested item with a following sibling',
+      function()
+        with_buffer(
+          { '- first', '  - second', '  - third' },
+          { 2, 4 },
+          function(ctx)
+            list.insert_item({ where = 'below' }, ctx)
+            assert.same(
+              { '- first', '  - second', '  - ', '  - third' },
+              vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+            )
+          end
+        )
+      end
+    )
 
     it('moves the cursor onto the new item', function()
       with_buffer({ '- foo' }, { 1, 0 }, function(ctx)

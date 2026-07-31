@@ -236,12 +236,19 @@ end
 --- `list` / `list_item` ranges greedily extend into trailing blank
 --- lines (and past EOF on the last item); clamp writes with this so
 --- they never touch rows the construct doesn't really own.
+---
+--- The final row counts only up to the node's end column: a nested
+--- `list_item` ends at the *indent* of the following sibling, so that
+--- row's text belongs to the sibling, not to this node.
 ---@param node TSNode
 ---@param bufnr integer
 ---@return integer
 function M.content_end(node, bufnr)
-  local sr = node:range()
+  local sr, _, _, ec = node:range()
   local lines = vim.api.nvim_buf_get_lines(bufnr, sr, M.end_row(node), false)
+  if ec > 0 and #lines > 0 then
+    lines[#lines] = lines[#lines]:sub(1, ec)
+  end
   for i = #lines, 1, -1 do
     if lines[i]:match('%S') ~= nil then
       return sr + i - 1

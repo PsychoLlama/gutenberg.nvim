@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New checkboxes now default to unchecked. Set `list.default_checked = true` in `setup` to restore the old behavior.
 
+### Fixed
+
+- `gutenberg.list.insert_item` and `dedent` no longer overshoot into the next
+  sibling when the cursor is on a nested list item. Inserting below `second` in
+  `- first / - second / - third` landed the new item after `third`, and
+  dedenting `second` dragged `third` along with it.
+
 ## [0.2.0] - 2026-07-14
 
 ### Changed
