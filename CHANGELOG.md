@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `gutenberg.list.insert_item` now numbers an item appended to the end of an
+  ordered list. Appending below a lone `1. First line` produced `1. ` instead of
+  `2. `.
+
 ## [0.3.0] - 2026-07-31
 
 ### Changed

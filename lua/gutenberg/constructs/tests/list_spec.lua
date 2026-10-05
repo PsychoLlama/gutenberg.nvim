@@ -632,6 +632,16 @@ describe('gutenberg.list', function()
       )
     end)
 
+    it('numbers a sibling appended to a lone ordered item', function()
+      with_buffer({ '1. First line' }, { 1, 0 }, function(ctx)
+        list.insert_item({ where = 'below' }, ctx)
+        assert.same(
+          { '1. First line', '2. ' },
+          vim.api.nvim_buf_get_lines(ctx.bufnr, 0, -1, false)
+        )
+      end)
+    end)
+
     it('renumbers when prepending to an ordered list', function()
       with_buffer({ '1. first', '2. second' }, { 1, 0 }, function(ctx)
         list.insert_item({ where = 'above' }, ctx)

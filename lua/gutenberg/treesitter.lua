@@ -165,7 +165,9 @@ end
 ---@param capture string
 ---@return TSNode[], string source
 function M.collect_in_lines(lines, capture)
-  local source = table.concat(lines, '\n')
+  -- Terminate the last line like a buffer does: without the newline, a
+  -- bare marker on the final line (`1. `) parses as an ERROR node.
+  local source = table.concat(lines, '\n') .. '\n'
   local parser = vim.treesitter.get_string_parser(source, 'markdown')
   local root = parser:parse()[1]:root()
   local query = get_query('markdown')
